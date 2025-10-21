@@ -1,0 +1,14 @@
+# Deno
+.deno/
+deno.lock
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite
+ollama.sqlite
