@@ -1,5 +1,6 @@
 /**
  * Validates email address format.
+ * @description Checks local part domain labels and basic syntax.
  * @param email - Email address string to validate
  * @throws {Error} When email validation fails
  */

@@ -3,11 +3,13 @@ import * as SMTP from '@smtp/index.ts'
 import * as Utils from '@utils/index.ts'
 
 /**
- * Main email service for sending messages via SMTP.
+ * Main email service.
+ * @description Exposes transporter factory for SMTP message sending.
  */
 export const mailer: Types.EmailService = {
   /**
-   * Creates an email transporter with SMTP configuration.
+   * Create email transporter.
+   * @description Validates config and returns sender abstraction.
    * @param config - SMTP connection configuration
    * @returns Email sender instance
    * @throws {Error} When configuration is invalid
@@ -19,7 +21,8 @@ export const mailer: Types.EmailService = {
 }
 
 /**
- * Creates email transporter instance.
+ * Create transporter instance.
+ * @description Builds sender with pooled or direct clients.
  * @param config - SMTP connection configuration
  * @returns Email sender implementation
  */
@@ -95,7 +98,7 @@ class SmtpClientPool {
 
   /**
    * Acquire pooled SMTP client.
-   * @description Returns an idle client or creates one.
+   * @description Returns idle client or creates new one.
    * @returns Available SMTP client instance
    */
   async acquireClient(): Promise<SMTP.SmtpClient> {
@@ -122,7 +125,7 @@ class SmtpClientPool {
 
   /**
    * Release pooled SMTP client.
-   * @description Marks client idle or hands off to waiting sender.
+   * @description Marks idle or hands off waiting sender.
    * @param client - SMTP client instance to release
    */
   releaseClient(client: SMTP.SmtpClient): void {
@@ -155,8 +158,8 @@ class SmtpClientPool {
   }
 
   /**
-   * Increment pooled client usage count.
-   * @description Tracks sent message count for recycle policy.
+   * Increment client usage count.
+   * @description Tracks message count for recycle policy.
    * @param client - SMTP client instance to count
    */
   markMessageProcessed(client: SMTP.SmtpClient): void {
@@ -166,13 +169,13 @@ class SmtpClientPool {
 }
 
 /**
- * Default export of the email service.
- * @description Main entry point for the Deno-Mailer library.
+ * Default mailer export.
+ * @description Provides main library entry for SMTP sending.
  */
 export default mailer
 
 /**
- * Re-exports all type definitions.
- * @description Provides access to all TypeScript interfaces and types.
+ * Re-export all types.
+ * @description Exposes shared interfaces and type aliases.
  */
 export type * from '@app/Types.ts'

@@ -2,6 +2,7 @@ import type * as Types from '@app/Types.ts'
 
 /**
  * Validates email attachment data.
+ * @description Checks filename content encoding fields and types.
  * @param attachment - Attachment to validate
  * @throws {Error} When attachment validation fails
  */
@@ -40,6 +41,7 @@ export function isValidAttachment(attachment: Types.EmailAttachment): void {
 
 /**
  * Validates embedded image attachment data.
+ * @description Reuses attachment checks and validates CID format.
  * @param attachment - Embedded attachment to validate
  * @throws {Error} When embedded attachment validation fails
  */

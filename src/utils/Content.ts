@@ -1,5 +1,6 @@
 /**
  * Generates unique Content-ID for embedded attachments.
+ * @description Builds random bytes timestamp and domain mailbox id.
  * @param domain - Domain name for Content-ID (defaults to 'deno-mailer.local')
  * @returns Generated Content-ID string
  */
@@ -15,6 +16,7 @@ export function generateContentId(domain = 'deno-mailer.local'): string {
 
 /**
  * Validates Content-ID format.
+ * @description Checks angle brackets at symbol and length bounds.
  * @param cid - Content-ID string to validate
  * @throws {Error} When Content-ID validation fails
  */

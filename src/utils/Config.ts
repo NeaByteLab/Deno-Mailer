@@ -2,6 +2,7 @@ import type * as Types from '@app/Types.ts'
 
 /**
  * Validates SMTP connection configuration.
+ * @description Runs nested checks for host port auth and options.
  * @param config - SMTP configuration to validate
  * @throws {Error} When configuration validation fails
  */
@@ -19,6 +20,7 @@ export function isValidConfig(config: Types.SmtpConnectionConfig): void {
 
 /**
  * Validates SMTP authentication credentials.
+ * @description Checks password and oauth2 shapes and lengths.
  * @param auth - Authentication credentials to validate
  * @throws {Error} When authentication validation fails
  */
@@ -54,6 +56,7 @@ function validateAuth(auth: Types.SmtpAuthCredential | undefined): void {
 
 /**
  * Validates SMTP DKIM configuration.
+ * @description Ensures domain selector and private key exist.
  * @param dkim - DKIM settings to validate
  * @throws {Error} When DKIM validation fails
  */
@@ -74,6 +77,7 @@ function validateDkim(dkim: Types.SmtpDkimConfig | undefined): void {
 
 /**
  * Validates SMTP host configuration.
+ * @description Checks host type length and non-empty value.
  * @param host - Host string to validate
  * @throws {Error} When host validation fails
  */
@@ -94,6 +98,7 @@ function validateHost(host: string): void {
 
 /**
  * Validates SMTP pool configuration.
+ * @description Validates pool booleans and numeric constraints.
  * @param pool - Pool settings to validate
  * @throws {Error} When pool validation fails
  */
@@ -126,6 +131,7 @@ function validatePool(pool: Types.SmtpPoolConfig | boolean | undefined): void {
 
 /**
  * Validates SMTP port configuration.
+ * @description Checks port type integer and allowed range.
  * @param port - Port number to validate
  * @throws {Error} When port validation fails
  */
@@ -146,6 +152,7 @@ function validatePort(port: number): void {
 
 /**
  * Validates SMTP secure configuration.
+ * @description Ensures secure flag is boolean type only.
  * @param secure - Secure flag to validate
  * @throws {Error} When secure validation fails
  */

@@ -1,5 +1,6 @@
 /**
  * Calendar event invitation data.
+ * @description Defines calendar payload fields for event invites.
  */
 export interface CalendarInvite {
   /** Unique identifier for the calendar event */
@@ -24,6 +25,7 @@ export interface CalendarInvite {
 
 /**
  * Email attachment data.
+ * @description Defines attachment payload for SMTP MIME messages.
  */
 export interface EmailAttachment {
   /** Name of the attached file */
@@ -38,6 +40,7 @@ export interface EmailAttachment {
 
 /**
  * Email contact information.
+ * @description Describes email address and optional display name.
  */
 export interface EmailContact {
   /** Optional display name for the contact */
@@ -48,6 +51,7 @@ export interface EmailContact {
 
 /**
  * Complete email message structure.
+ * @description Defines sender recipients body and message options.
  */
 export interface EmailMessage {
   /** Sender email address or contact */
@@ -77,16 +81,19 @@ export interface EmailMessage {
 }
 
 /**
- * Email recipient type that can be a string, EmailContact object, or array of either.
+ * Email recipient type.
+ * @description Allows string object or array recipient formats.
  */
 export type EmailRecipient = string | EmailContact | (string | EmailContact)[]
 
 /**
  * Email sender interface.
+ * @description Defines async message send capability contract.
  */
 export interface EmailSender {
   /**
    * Sends an email message.
+   * @description Sends one message and returns SMTP result data.
    * @param message - The email message to send
    * @returns Structured SMTP delivery result
    * @throws {Error} When message sending fails
@@ -96,10 +103,12 @@ export interface EmailSender {
 
 /**
  * Email service interface.
+ * @description Defines factory for creating SMTP senders.
  */
 export interface EmailService {
   /**
-   * Creates an email transporter with SMTP configuration.
+   * Create email transporter.
+   * @description Builds sender from SMTP connection configuration.
    * @param config - SMTP connection configuration
    * @returns Email sender instance
    */
@@ -108,6 +117,7 @@ export interface EmailService {
 
 /**
  * Embedded image attachment.
+ * @description Extends attachment with CID and disposition fields.
  */
 export interface EmbeddedImage extends EmailAttachment {
   /** Content-ID for referencing in HTML */
@@ -118,6 +128,7 @@ export interface EmbeddedImage extends EmailAttachment {
 
 /**
  * Processed email contact.
+ * @description Represents normalized address for SMTP processing.
  */
 export interface ProcessedContact {
   /** Email address */
@@ -154,6 +165,7 @@ export interface SmtpPasswordAuthCredential extends SmtpAuthBase<'password'> {
 
 /**
  * SMTP connection configuration.
+ * @description Defines host port auth DKIM and pooling options.
  */
 export interface SmtpConnectionConfig {
   /** SMTP server hostname */
@@ -172,6 +184,7 @@ export interface SmtpConnectionConfig {
 
 /**
  * SMTP connection state.
+ * @description Holds active sockets and SMTP config reference.
  */
 export interface SmtpConnectionState {
   /** Raw TCP connection */
