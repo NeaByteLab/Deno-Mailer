@@ -1,9 +1,4 @@
 /**
- * Email recipient type that can be a string, EmailContact object, or array of either.
- */
-export type EmailRecipient = string | EmailContact | (string | EmailContact)[]
-
-/**
  * Calendar event invitation data.
  */
 export interface CalendarInvite {
@@ -82,6 +77,11 @@ export interface EmailMessage {
 }
 
 /**
+ * Email recipient type that can be a string, EmailContact object, or array of either.
+ */
+export type EmailRecipient = string | EmailContact | (string | EmailContact)[]
+
+/**
  * Email sender interface.
  */
 export interface EmailSender {
@@ -125,13 +125,29 @@ export interface ProcessedContact {
   displayName?: string
 }
 
-/**
- * SMTP authentication credentials.
- */
-export interface SmtpAuthCredential {
-  /** SMTP username */
+/** Base SMTP auth fields. */
+export interface SmtpAuthBase<TKind extends SmtpAuthKind> {
+  /** Authentication type discriminator */
+  type: TKind
+  /** SMTP account username */
   user: string
-  /** SMTP password */
+}
+
+/** Supported SMTP auth credential variants. */
+export type SmtpAuthCredential = SmtpPasswordAuthCredential | SmtpOAuth2AuthCredential
+
+/** Supported SMTP auth type. */
+export type SmtpAuthKind = 'password' | 'oauth2'
+
+/** SMTP oauth2 auth credentials. */
+export interface SmtpOAuth2AuthCredential extends SmtpAuthBase<'oauth2'> {
+  /** OAuth2 bearer access token */
+  accessToken: string
+}
+
+/** SMTP password auth credentials. */
+export interface SmtpPasswordAuthCredential extends SmtpAuthBase<'password'> {
+  /** SMTP password value */
   pass: string
 }
 

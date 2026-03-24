@@ -21,6 +21,13 @@ export class SmtpAuth {
     if (!this.state.config.auth) {
       return
     }
+    if (this.state.config.auth.type === 'oauth2') {
+      const oauth2Payload =
+        `user=${this.state.config.auth.user}\x01auth=Bearer ${this.state.config.auth.accessToken}\x01\x01`
+      const encodedOAuth2 = btoa(oauth2Payload)
+      await this.sendCommand(`AUTH XOAUTH2 ${encodedOAuth2}`)
+      return
+    }
     try {
       await this.sendCommand('AUTH LOGIN')
       const username = btoa(this.state.config.auth.user)

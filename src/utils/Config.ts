@@ -25,15 +25,28 @@ function validateAuth(auth: Types.SmtpAuthCredential | undefined): void {
     if (!auth.user || auth.user.length === 0) {
       throw new Error('SMTP auth user is required')
     }
-    if (!auth.pass || auth.pass.length === 0) {
-      throw new Error('SMTP auth password is required')
-    }
     if (auth.user.length > 253) {
       throw new Error('SMTP auth user must be less than 253 characters')
     }
-    if (auth.pass.length > 253) {
-      throw new Error('SMTP auth password must be less than 253 characters')
+    if (auth.type === 'password') {
+      if (!auth.pass || auth.pass.length === 0) {
+        throw new Error('SMTP auth password is required')
+      }
+      if (auth.pass.length > 253) {
+        throw new Error('SMTP auth password must be less than 253 characters')
+      }
+      return
     }
+    if (auth.type === 'oauth2') {
+      if (!auth.accessToken || auth.accessToken.length === 0) {
+        throw new Error('SMTP oauth2 access token is required')
+      }
+      if (auth.accessToken.length > 8192) {
+        throw new Error('SMTP oauth2 access token must be less than 8192 characters')
+      }
+      return
+    }
+    throw new Error('SMTP auth type must be password or oauth2')
   }
 }
 
