@@ -175,15 +175,14 @@ export class SmtpClient {
       const smtpSafeMessage = this.toSmtpDataStream(dkimSignedMessage)
       await this.commands.sendData(smtpSafeMessage)
       const dataResponse = await this.commands.sendCommand('.')
-      const messageIdMatch =
-        dkimSignedMessage.match(/\r\nMessage-ID:\s*(<[^>\r\n]+>)/i) ||
+      const messageIdMatch = dkimSignedMessage.match(/\r\nMessage-ID:\s*(<[^>\r\n]+>)/i) ||
         dkimSignedMessage.match(/^Message-ID:\s*(<[^>\r\n]+>)/i)
       const messageId = messageIdMatch ? (messageIdMatch[1] ?? '') : ''
       return {
         acceptedRecipients,
         envelope: {
           from: senderEmail,
-          to: allRecipients.map(recipient => recipient.email)
+          to: allRecipients.map((recipient) => recipient.email)
         },
         messageId,
         rejectedRecipients,
@@ -216,9 +215,9 @@ export class SmtpClient {
     const rawHeaderLines = rawHeaderSection.split('\r\n')
     const selectedHeaderNames =
       this.config.dkim.headerFieldNames && this.config.dkim.headerFieldNames.length > 0
-        ? this.config.dkim.headerFieldNames.map(headerName => headerName.toLowerCase())
+        ? this.config.dkim.headerFieldNames.map((headerName) => headerName.toLowerCase())
         : ['from', 'to', 'subject', 'date', 'message-id', 'mime-version', 'content-type']
-    const selectedHeaderLines = rawHeaderLines.filter(headerLine => {
+    const selectedHeaderLines = rawHeaderLines.filter((headerLine) => {
       const separatorIndex = headerLine.indexOf(':')
       if (separatorIndex < 1) {
         return false
@@ -226,11 +225,11 @@ export class SmtpClient {
       const headerName = headerLine.slice(0, separatorIndex).trim().toLowerCase()
       return selectedHeaderNames.includes(headerName)
     })
-    const signedHeaderNames = selectedHeaderLines.map(headerLine => {
+    const signedHeaderNames = selectedHeaderLines.map((headerLine) => {
       const separatorIndex = headerLine.indexOf(':')
       return headerLine.slice(0, separatorIndex).trim().toLowerCase()
     })
-    const canonicalizedHeaderLines = selectedHeaderLines.map(headerLine => {
+    const canonicalizedHeaderLines = selectedHeaderLines.map((headerLine) => {
       const separatorIndex = headerLine.indexOf(':')
       const headerName = headerLine.slice(0, separatorIndex).trim().toLowerCase()
       const headerValue = headerLine
@@ -249,14 +248,15 @@ export class SmtpClient {
     const domainName = this.config.dkim.domainName
     const keySelector = this.config.dkim.keySelector
     const signedHeaderList = signedHeaderNames.join(':')
-    const dkimHeaderPrefix = `v=1; a=rsa-sha256; c=relaxed/relaxed; d=${domainName}; s=${keySelector}; h=${signedHeaderList}; bh=${bodyHashBase64}; b=`
+    const dkimHeaderPrefix =
+      `v=1; a=rsa-sha256; c=relaxed/relaxed; d=${domainName}; s=${keySelector}; h=${signedHeaderList}; bh=${bodyHashBase64}; b=`
     const dkimSigningLine = `dkim-signature:${dkimHeaderPrefix}`
     const signingPayload = [...canonicalizedHeaderLines, dkimSigningLine].join('\r\n')
     const pemBody = this.config.dkim.privateKey
       .replace('-----BEGIN PRIVATE KEY-----', '')
       .replace('-----END PRIVATE KEY-----', '')
       .replace(/\s+/g, '')
-    const binaryDer = Uint8Array.from(atob(pemBody), char => char.charCodeAt(0))
+    const binaryDer = Uint8Array.from(atob(pemBody), (char) => char.charCodeAt(0))
     const cryptoKey = await crypto.subtle.importKey(
       'pkcs8',
       binaryDer,

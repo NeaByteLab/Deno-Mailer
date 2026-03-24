@@ -40,7 +40,7 @@ export class SmtpCommand {
         throw new Error('Connection closed')
       }
       response += decoder.decode(buffer.subarray(0, bytesRead))
-      const completeLines = response.split('\r\n').filter(line => line.length > 0)
+      const completeLines = response.split('\r\n').filter((line) => line.length > 0)
       const lastLine = completeLines[completeLines.length - 1]
       if (!lastLine) {
         continue
@@ -49,7 +49,7 @@ export class SmtpCommand {
         break
       }
     }
-    const finalLines = response.split('\r\n').filter(line => line.length > 0)
+    const finalLines = response.split('\r\n').filter((line) => line.length > 0)
     const finalLine = finalLines[finalLines.length - 1] ?? response
     const statusCode = finalLine.substring(0, 3)
     if (!finalLine.startsWith('2') && !finalLine.startsWith('3')) {

@@ -84,7 +84,7 @@ export class SmtpMessage {
   ): string[] {
     const headers = [
       `From: ${SMTP.SmtpAddress.formatAddressForHeader(fromAddress)}`,
-      `To: ${toAddresses.map(addr => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`,
+      `To: ${toAddresses.map((addr) => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`,
       `Subject: ${message.subject}`,
       `Date: ${new Date().toUTCString()}`,
       `Message-ID: <${Date.now()}@${this.config.host}>`,
@@ -93,7 +93,7 @@ export class SmtpMessage {
     if (message.cc) {
       const ccAddresses = SMTP.SmtpAddress.parseAddressList(message.cc)
       headers.push(
-        `Cc: ${ccAddresses.map(addr => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`
+        `Cc: ${ccAddresses.map((addr) => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`
       )
     }
     const replyToAddress = message.replyTo
