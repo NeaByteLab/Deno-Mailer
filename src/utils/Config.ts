@@ -10,7 +10,9 @@ export function isValidConfig(config: Types.SmtpConnectionConfig): void {
     throw new Error('Configuration is required')
   }
   validateAuth(config.auth ?? undefined)
+  validateDkim(config.dkim ?? undefined)
   validateHost(config.host)
+  validatePool(config.pool ?? undefined)
   validatePort(config.port)
   validateSecure(config.secure ?? false)
 }
@@ -51,6 +53,26 @@ function validateAuth(auth: Types.SmtpAuthCredential | undefined): void {
 }
 
 /**
+ * Validates SMTP DKIM configuration.
+ * @param dkim - DKIM settings to validate
+ * @throws {Error} When DKIM validation fails
+ */
+function validateDkim(dkim: Types.SmtpDkimConfig | undefined): void {
+  if (!dkim) {
+    return
+  }
+  if (!dkim.domainName || dkim.domainName.trim().length === 0) {
+    throw new Error('SMTP dkim domainName is required')
+  }
+  if (!dkim.keySelector || dkim.keySelector.trim().length === 0) {
+    throw new Error('SMTP dkim keySelector is required')
+  }
+  if (!dkim.privateKey || dkim.privateKey.trim().length === 0) {
+    throw new Error('SMTP dkim privateKey is required')
+  }
+}
+
+/**
  * Validates SMTP host configuration.
  * @param host - Host string to validate
  * @throws {Error} When host validation fails
@@ -67,6 +89,38 @@ function validateHost(host: string): void {
   }
   if (host.length > 253) {
     throw new Error('SMTP host must be 253 characters or less')
+  }
+}
+
+/**
+ * Validates SMTP pool configuration.
+ * @param pool - Pool settings to validate
+ * @throws {Error} When pool validation fails
+ */
+function validatePool(pool: Types.SmtpPoolConfig | boolean | undefined): void {
+  if (pool === undefined) {
+    return
+  }
+  if (typeof pool === 'boolean') {
+    return
+  }
+  if (
+    pool.maxConnections !== undefined &&
+    (!Number.isInteger(pool.maxConnections) || pool.maxConnections < 1)
+  ) {
+    throw new Error('SMTP pool maxConnections must be integer >= 1')
+  }
+  if (
+    pool.maxMessagesPerConnection !== undefined &&
+    (!Number.isInteger(pool.maxMessagesPerConnection) || pool.maxMessagesPerConnection < 1)
+  ) {
+    throw new Error('SMTP pool maxMessagesPerConnection must be integer >= 1')
+  }
+  if (
+    pool.idleTimeoutMs !== undefined &&
+    (!Number.isInteger(pool.idleTimeoutMs) || pool.idleTimeoutMs < 0)
+  ) {
+    throw new Error('SMTP pool idleTimeoutMs must be integer >= 0')
   }
 }
 
