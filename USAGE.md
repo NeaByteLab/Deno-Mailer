@@ -8,6 +8,8 @@ This document explains the full **Deno Mailer** usage flow, from SMTP configurat
 - [Configuration](#configuration)
   - [SMTP Settings](#smtp-settings)
   - [Authentication](#authentication)
+  - [DKIM Signing](#dkim-signing)
+  - [Pooling and Reuse](#pooling-and-reuse)
   - [TLS and SSL Options](#tls-and-ssl-options)
 - [Basic Usage](#basic-usage)
   - [Simple Text Email](#simple-text-email)
@@ -83,6 +85,48 @@ auth: {
 // For local SMTP without auth, omit `auth`.
 ```
 
+### DKIM Signing
+
+```ts
+// Enable DKIM signing with selector and private key.
+const transporter = mailer.transporter({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    type: 'password',
+    user: 'your-email@gmail.com',
+    pass: 'your-app-password'
+  },
+  dkim: {
+    domainName: 'example.com',
+    keySelector: 'mail',
+    privateKey: Deno.env.get('DKIM_PRIVATE_KEY') || ''
+  }
+})
+```
+
+### Pooling and Reuse
+
+```ts
+// Reuse SMTP clients across sends with bounded pool config.
+const transporter = mailer.transporter({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    type: 'password',
+    user: 'your-email@gmail.com',
+    pass: 'your-app-password'
+  },
+  pool: {
+    maxConnections: 2,
+    maxMessagesPerConnection: 100,
+    idleTimeoutMs: 60000
+  }
+})
+```
+
 ### TLS and SSL Options
 
 ```ts
@@ -106,13 +150,14 @@ auth: {
 ### Simple Text Email
 
 ```ts
-// Send plain text email.
-await transporter.send({
+// Send plain text email and inspect delivery result.
+const result = await transporter.send({
   from: 'sender@example.com',
   to: 'recipient@example.com',
   subject: 'Hello World',
   text: 'This is a plain text email'
 })
+console.log(result.acceptedRecipients)
 ```
 
 ### HTML Email
@@ -373,22 +418,29 @@ await transporter.send({
 
 ### Main API
 
-| Method                       | Description               | Parameters             | Returns         |
-| ---------------------------- | ------------------------- | ---------------------- | --------------- |
-| `mailer.transporter(config)` | Creates email transporter | `SmtpConnectionConfig` | `EmailSender`   |
-| `transporter.send(message)`  | Sends email message       | `EmailMessage`         | `Promise<void>` |
+| Method                       | Description               | Parameters             | Returns                   |
+| ---------------------------- | ------------------------- | ---------------------- | ------------------------- |
+| `mailer.transporter(config)` | Creates email transporter | `SmtpConnectionConfig` | `EmailSender`             |
+| `transporter.send(message)`  | Sends email message       | `EmailMessage`         | `Promise<SmtpSendResult>` |
 
 ### Configuration Options
 
-| Option             | Type    | Required | Description          | Example                     |
-| ------------------ | ------- | -------- | -------------------- | --------------------------- |
-| `host`             | string  | yes      | SMTP server hostname | `'smtp.gmail.com'`          |
-| `port`             | number  | yes      | SMTP server port     | `587`, `465`, `25`          |
-| `secure`           | boolean | no       | Use TLS connection   | `true` (465), `false` (587) |
-| `auth.type`        | string  | no       | Auth mode            | `'password'`, `'oauth2'`    |
-| `auth.user`        | string  | no       | SMTP username        | `'user@example.com'`        |
-| `auth.pass`        | string  | no       | SMTP password        | `'your-password'`           |
-| `auth.accessToken` | string  | no       | OAuth2 bearer token  | `'ya29.a0...'`              |
+| Option                          | Type           | Required | Description                  | Example                            |
+| ------------------------------- | -------------- | -------- | ---------------------------- | ---------------------------------- |
+| `host`                          | string         | yes      | SMTP server hostname         | `'smtp.gmail.com'`                 |
+| `port`                          | number         | yes      | SMTP server port             | `587`, `465`, `25`                 |
+| `secure`                        | boolean        | no       | Use TLS connection           | `true` (465), `false` (587)        |
+| `auth.type`                     | string         | no       | Auth mode                    | `'password'`, `'oauth2'`           |
+| `auth.user`                     | string         | no       | SMTP username                | `'user@example.com'`               |
+| `auth.pass`                     | string         | no       | SMTP password                | `'your-password'`                  |
+| `auth.accessToken`              | string         | no       | OAuth2 bearer token          | `'ya29.a0...'`                     |
+| `pool`                          | boolean/object | no       | Enable SMTP client reuse     | `true`, `{...}`                    |
+| `pool.maxConnections`           | number         | no       | Maximum pooled clients       | `2`                                |
+| `pool.maxMessagesPerConnection` | number         | no       | Recycle client after N sends | `100`                              |
+| `pool.idleTimeoutMs`            | number         | no       | Idle disconnect timeout ms   | `60000`                            |
+| `dkim.domainName`               | string         | no       | DKIM signing domain          | `'example.com'`                    |
+| `dkim.keySelector`              | string         | no       | DKIM DNS selector            | `'mail'`                           |
+| `dkim.privateKey`               | string         | no       | PEM private signing key      | `'-----BEGIN PRIVATE KEY-----...'` |
 
 ### Message Properties
 
@@ -409,6 +461,16 @@ await transporter.send({
 
 Attachment and embedded image encoding supports `base64`, `7bit`, and `quoted-printable`.
 Embedded image disposition supports `inline` and `attachment`.
+
+### Send Result
+
+`transporter.send()` now resolves a structured result:
+
+- `messageId`: Message-ID header value
+- `envelope`: SMTP envelope sender and recipients
+- `acceptedRecipients`: recipients accepted by server
+- `rejectedRecipients`: recipients rejected by server
+- `response`: final SMTP DATA completion response
 
 ### Error Handling
 

@@ -11,11 +11,14 @@ Lightweight Deno SMTP mailer with flexible configuration and formatting.
 ## Features
 
 - **Simple SMTP transport**: create transporter and send emails with minimal setup
+- **Connection pooling support**: reuse SMTP clients with configurable pool limits
+- **DKIM signing support**: sign outgoing messages with RSA private key
 - **Flexible recipients**: supports string, object, and mixed recipient formats
 - **Rich message content**: plain text, HTML, mixed body, and custom headers
 - **Attachments and inline media**: supports file attachments and embedded images
 - **Transfer control options**: supports base64, 7bit, and quoted-printable encodings
 - **Calendar invitations**: generates ICS calendar payload for meeting invites
+- **Structured send result**: returns message id, envelope, accepted, rejected, and response
 - **Zero external runtime deps**: built with Deno native capabilities
 
 ## Installation
@@ -44,13 +47,14 @@ const transporter = mailer.transporter({
 })
 
 // Send one email with text and HTML parts.
-await transporter.send({
+const result = await transporter.send({
   from: '"John Doe" <john.doe@example.com>',
   to: 'recipient@domain.com',
   subject: 'Test Email',
   text: 'This is a test email',
   html: '<b>This is a test email</b>'
 })
+console.log(result.messageId)
 ```
 
 ## Build and Check
