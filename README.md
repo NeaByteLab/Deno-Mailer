@@ -37,6 +37,7 @@ const transporter = mailer.transporter({
   port: 587,
   secure: false,
   auth: {
+    type: 'password',
     user: 'user@domain.com',
     pass: 'password'
   }
@@ -75,6 +76,10 @@ deno task test
 # Alternative: export credentials in shell, then run test suite.
 export ETHEREAL_USER=your-ethereal-username
 export ETHEREAL_PASS=your-ethereal-password
+
+# Optional: run OAuth2 integration test too.
+export SMTP_OAUTH2_ACCESS_TOKEN=your-oauth2-access-token
+export RUN_OAUTH2_SMTP_TEST=true
 
 # Optional: run secure TLS (port 465) integration test too.
 export RUN_SECURE_SMTP_TEST=true

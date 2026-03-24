@@ -51,6 +51,7 @@ const config = {
   port: 587,
   secure: false,
   auth: {
+    type: 'password',
     user: 'your-email@gmail.com',
     pass: 'your-app-password'
   }
@@ -59,13 +60,24 @@ const config = {
 
 ### Authentication
 
-Deno Mailer supports LOGIN and PLAIN authentication methods.
+Deno Mailer supports two explicit authentication modes:
+
+- `type: 'password'` using LOGIN with PLAIN fallback
+- `type: 'oauth2'` using XOAUTH2 bearer token
 
 ```ts
-// Basic authentication object.
+// Password authentication object.
 auth: {
+  type: 'password',
   user: 'username',
   pass: 'password'
+}
+
+// OAuth2 authentication object.
+auth: {
+  type: 'oauth2',
+  user: 'username',
+  accessToken: 'access-token-value'
 }
 
 // For local SMTP without auth, omit `auth`.
@@ -368,13 +380,15 @@ await transporter.send({
 
 ### Configuration Options
 
-| Option      | Type    | Required | Description          | Example                     |
-| ----------- | ------- | -------- | -------------------- | --------------------------- |
-| `host`      | string  | yes      | SMTP server hostname | `'smtp.gmail.com'`          |
-| `port`      | number  | yes      | SMTP server port     | `587`, `465`, `25`          |
-| `secure`    | boolean | no       | Use TLS connection   | `true` (465), `false` (587) |
-| `auth.user` | string  | no       | SMTP username        | `'user@example.com'`        |
-| `auth.pass` | string  | no       | SMTP password        | `'your-password'`           |
+| Option             | Type    | Required | Description          | Example                     |
+| ------------------ | ------- | -------- | -------------------- | --------------------------- |
+| `host`             | string  | yes      | SMTP server hostname | `'smtp.gmail.com'`          |
+| `port`             | number  | yes      | SMTP server port     | `587`, `465`, `25`          |
+| `secure`           | boolean | no       | Use TLS connection   | `true` (465), `false` (587) |
+| `auth.type`        | string  | no       | Auth mode            | `'password'`, `'oauth2'`    |
+| `auth.user`        | string  | no       | SMTP username        | `'user@example.com'`        |
+| `auth.pass`        | string  | no       | SMTP password        | `'your-password'`           |
+| `auth.accessToken` | string  | no       | OAuth2 bearer token  | `'ya29.a0...'`              |
 
 ### Message Properties
 
@@ -423,6 +437,7 @@ const transporter = mailer.transporter({
   port: 587,
   secure: false,
   auth: {
+    type: 'password',
     user: 'your-email@gmail.com',
     pass: 'your-app-password'
   }
@@ -438,6 +453,7 @@ const transporter = mailer.transporter({
   port: 587,
   secure: false,
   auth: {
+    type: 'password',
     user: 'your-email@outlook.com',
     pass: 'your-password'
   }
@@ -453,6 +469,7 @@ const transporter = mailer.transporter({
   port: 587,
   secure: false,
   auth: {
+    type: 'password',
     user: 'noreply@yourcompany.com',
     pass: 'your-password'
   }
