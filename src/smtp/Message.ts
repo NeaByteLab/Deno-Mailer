@@ -7,6 +7,25 @@ import * as Utils from '@utils/index.ts'
  * @description Formats headers, body, and multipart sections.
  */
 export class SmtpMessage {
+  /** Allowed custom header name pattern */
+  private readonly customHeaderNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
+  /** Reserved custom headers to block */
+  private readonly blockedCustomHeaderNames = new Set([
+    'bcc',
+    'cc',
+    'content-disposition',
+    'content-id',
+    'content-transfer-encoding',
+    'content-type',
+    'date',
+    'from',
+    'message-id',
+    'mime-version',
+    'reply-to',
+    'subject',
+    'to'
+  ])
+
   /**
    * Create message formatter.
    * @description Stores SMTP config for generated headers.
@@ -83,7 +102,7 @@ export class SmtpMessage {
     headers.push(`Reply-To: ${SMTP.SmtpAddress.formatAddressForHeader(replyToAddress)}`)
     if (message.headers) {
       for (const [key, value] of Object.entries(message.headers)) {
-        headers.push(`${key}: ${value}`)
+        headers.push(this.formatCustomHeader(key, value))
       }
     }
     return headers
@@ -176,6 +195,35 @@ export class SmtpMessage {
     parts.push('')
     parts.push(`--${boundary}--`)
     return parts.join('\r\n')
+  }
+
+  /**
+   * Format custom header.
+   * @description Validates custom header name and value safety.
+   * @param customHeaderKey - Custom header name
+   * @param customHeaderValue - Custom header value
+   * @returns Safe custom header string
+   * @throws {Error} When custom header key or value is invalid
+   */
+  private formatCustomHeader(customHeaderKey: string, customHeaderValue: string): string {
+    const trimmedHeaderKey = customHeaderKey.trim()
+    const normalizedHeaderKey = trimmedHeaderKey.toLowerCase()
+    if (trimmedHeaderKey.length === 0) {
+      throw new Error('Custom header name cannot be empty')
+    }
+    if (this.blockedCustomHeaderNames.has(normalizedHeaderKey)) {
+      throw new Error(`Custom header "${trimmedHeaderKey}" is reserved and cannot be overridden`)
+    }
+    if (!this.customHeaderNamePattern.test(trimmedHeaderKey)) {
+      throw new Error(`Custom header "${trimmedHeaderKey}" contains invalid characters`)
+    }
+    if (trimmedHeaderKey.includes('\r') || trimmedHeaderKey.includes('\n')) {
+      throw new Error(`Custom header "${trimmedHeaderKey}" contains line break characters`)
+    }
+    if (customHeaderValue.includes('\r') || customHeaderValue.includes('\n')) {
+      throw new Error(`Custom header "${trimmedHeaderKey}" value contains line break characters`)
+    }
+    return `${trimmedHeaderKey}: ${customHeaderValue}`
   }
 
   /**
