@@ -1,16 +1,17 @@
-import type { CalendarInvite } from '@app/Types.ts'
+import type * as Types from '@app/Types.ts'
 
 /**
- * Formats calendar events for email transmission.
- * @description Creates iCalendar (RFC 5545) formatted calendar events for email attachments.
+ * Format calendar invite payload.
+ * @description Builds RFC 5545 text for calendar attachments.
  */
-export class CalendarFormatter {
+export class SmtpCalendar {
   /**
-   * Formats calendar event as iCalendar data.
+   * Format calendar event.
+   * @description Converts invite fields into VCALENDAR content.
    * @param event - Calendar event data to format
    * @returns iCalendar formatted string
    */
-  static formatCalendarEvent(event: CalendarInvite): string {
+  static formatCalendarEvent(event: Types.CalendarInvite): string {
     const formatDateTime = (dateTime: string): string => {
       return new Date(dateTime).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
     }

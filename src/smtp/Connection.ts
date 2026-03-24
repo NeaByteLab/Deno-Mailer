@@ -1,18 +1,20 @@
-import type { SmtpConnectionState } from '@app/Types.ts'
+import type * as Types from '@app/Types.ts'
 
 /**
- * Manages SMTP connection lifecycle.
- * @description Handles TCP/TLS connections with timeout protection.
+ * Manage SMTP connection lifecycle.
+ * @description Opens, upgrades, and closes SMTP socket state.
  */
-export class ConnectionManager {
+export class SmtpConnection {
   /**
-   * Creates a new connection manager.
+   * Create connection manager.
+   * @description Stores shared connection state reference.
    * @param state - Shared SMTP connection state
    */
-  constructor(private state: SmtpConnectionState) {}
+  constructor(private state: Types.SmtpConnectionState) {}
 
   /**
-   * Establishes SMTP connection with optional TLS upgrade.
+   * Establish SMTP connection.
+   * @description Connects and optionally upgrades transport to TLS.
    * @throws {Error} When connection fails or timeout occurs
    */
   async connect(): Promise<void> {
@@ -35,7 +37,8 @@ export class ConnectionManager {
   }
 
   /**
-   * Closes SMTP connection gracefully.
+   * Close SMTP connection.
+   * @description Sends QUIT and closes active socket.
    */
   async disconnect(): Promise<void> {
     if (this.state.tlsConn) {
@@ -58,7 +61,8 @@ export class ConnectionManager {
   }
 
   /**
-   * Upgrades TCP connection to TLS encryption.
+   * Upgrade connection to TLS.
+   * @description Starts TLS over existing TCP connection.
    * @throws {Error} When no connection exists to upgrade
    */
   async upgradeToTLS(): Promise<void> {
@@ -72,7 +76,8 @@ export class ConnectionManager {
   }
 
   /**
-   * Reads SMTP server response.
+   * Read server response.
+   * @description Reads response and validates SMTP status class.
    * @returns Server response string
    * @throws {Error} When connection is closed or server returns error code
    */
@@ -111,7 +116,8 @@ export class ConnectionManager {
   }
 
   /**
-   * Sends SMTP command to server.
+   * Send SMTP command.
+   * @description Writes command and waits for server reply.
    * @param command - SMTP command to send
    * @throws {Error} When command times out or server returns error
    */

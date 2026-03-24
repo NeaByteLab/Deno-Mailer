@@ -1,16 +1,17 @@
-import type { EmailRecipient, ProcessedContact } from '@app/Types.ts'
+import type * as Types from '@app/Types.ts'
 
 /**
- * Parses and formats email addresses.
- * @description Supports various address formats and header formatting.
+ * Parse and format addresses.
+ * @description Handles recipient formats and header-safe output.
  */
-export class AddressParser {
+export class SmtpAddress {
   /**
-   * Formats processed contact for email header.
+   * Format address for header.
+   * @description Escapes display name and formats mailbox output.
    * @param address - Processed contact information
    * @returns Formatted address string
    */
-  static formatAddressForHeader(address: ProcessedContact): string {
+  static formatAddressForHeader(address: Types.ProcessedContact): string {
     if (address.displayName) {
       const escapedName = address.displayName.replace(/[",\\]/g, '\\$&')
       return `"${escapedName}" <${address.email}>`
@@ -19,12 +20,13 @@ export class AddressParser {
   }
 
   /**
-   * Parses single email address from various formats.
+   * Parse one email address.
+   * @description Converts string or object into normalized contact.
    * @param address - Email address in string or EmailContact format
    * @returns Processed contact information
    * @throws {Error} When address format is invalid
    */
-  static parseAddress(address: EmailRecipient): ProcessedContact {
+  static parseAddress(address: Types.EmailRecipient): Types.ProcessedContact {
     if (typeof address === 'string') {
       const match = address.match(/^(.+?)\s*<(.+)>$/)
       if (match && match[1] && match[2]) {
@@ -45,11 +47,12 @@ export class AddressParser {
   }
 
   /**
-   * Parses list of email addresses.
+   * Parse email address list.
+   * @description Normalizes one or many recipient entries.
    * @param addresses - Email addresses in various formats
    * @returns Array of processed contact information
    */
-  static parseAddressList(addresses: EmailRecipient): ProcessedContact[] {
+  static parseAddressList(addresses: Types.EmailRecipient): Types.ProcessedContact[] {
     if (typeof addresses === 'string') {
       return addresses.split(',').map((addr) => this.parseAddress(addr.trim()))
     }

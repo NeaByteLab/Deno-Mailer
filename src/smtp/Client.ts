@@ -1,10 +1,10 @@
-import type { EmailMessage, SmtpConnectionConfig, SmtpConnectionState } from '@app/Types.ts'
-import { AddressParser, MessageFormatter, SmtpAuth, SmtpCommand } from '@smtp/index.ts'
-import { isValidAttachment, isValidEmail, isValidEmbedded } from '@utils/index.ts'
+import type * as Types from '@app/Types.ts'
+import * as SMTP from '@smtp/index.ts'
+import * as Utils from '@utils/index.ts'
 
 /**
- * SMTP client for sending email messages.
- * @description Handles SMTP connections, authentication, and message transmission.
+ * Send email through SMTP.
+ * @description Manages connection, auth, and message delivery flow.
  */
 export class SmtpClient {
   /** Raw TCP connection */
@@ -12,34 +12,36 @@ export class SmtpClient {
   /** TLS encrypted connection */
   private tlsConn: Deno.TlsConn | null = null
   /** SMTP server configuration */
-  private config: SmtpConnectionConfig
+  private config: Types.SmtpConnectionConfig
   /** Internal connection state tracking */
-  private connectionState: SmtpConnectionState
+  private connectionState: Types.SmtpConnectionState
   /** SMTP command handler */
-  private commands: SmtpCommand
+  private commands: SMTP.SmtpCommand
   /** SMTP authentication handler */
-  private auth: SmtpAuth
+  private auth: SMTP.SmtpAuth
   /** Email message formatter */
-  private messageFormatter: MessageFormatter
+  private messageFormatter: SMTP.SmtpMessage
 
   /**
-   * Creates a new SMTP client instance.
+   * Create SMTP client.
+   * @description Initializes connection state and helper classes.
    * @param config - SMTP server connection configuration
    */
-  constructor(config: SmtpConnectionConfig) {
+  constructor(config: Types.SmtpConnectionConfig) {
     this.config = config
     this.connectionState = {
       conn: this.conn,
       tlsConn: this.tlsConn,
       config: this.config
     }
-    this.commands = new SmtpCommand(this.connectionState)
-    this.auth = new SmtpAuth(this.connectionState)
-    this.messageFormatter = new MessageFormatter(this.config)
+    this.commands = new SMTP.SmtpCommand(this.connectionState)
+    this.auth = new SMTP.SmtpAuth(this.connectionState)
+    this.messageFormatter = new SMTP.SmtpMessage(this.config)
   }
 
   /**
-   * Establishes connection to SMTP server.
+   * Connect to SMTP server.
+   * @description Opens socket, upgrades TLS, then authenticates.
    * @throws {Error} When connection fails or authentication is rejected
    */
   async connect(): Promise<void> {
@@ -76,7 +78,8 @@ export class SmtpClient {
   }
 
   /**
-   * Closes connection to SMTP server.
+   * Disconnect from SMTP server.
+   * @description Sends QUIT and closes active transport.
    */
   async disconnect(): Promise<void> {
     if (this.tlsConn) {
@@ -101,43 +104,44 @@ export class SmtpClient {
   }
 
   /**
-   * Sends an email message via SMTP.
+   * Send SMTP message.
+   * @description Validates recipients, sends envelope, then DATA.
    * @param message - The email message to send
    * @throws {Error} When message validation fails or transmission is unsuccessful
    */
-  async sendMessage(message: EmailMessage): Promise<void> {
+  async sendMessage(message: Types.EmailMessage): Promise<void> {
     if (!this.conn && !this.tlsConn) {
       throw new Error('Not connected to SMTP server')
     }
     if (message.attachments && message.attachments.length > 0) {
       for (const attachment of message.attachments) {
-        isValidAttachment(attachment)
+        Utils.isValidAttachment(attachment)
       }
     }
     if (message.embeddedImages && message.embeddedImages.length > 0) {
       for (const attachment of message.embeddedImages) {
-        isValidEmbedded(attachment)
+        Utils.isValidEmbedded(attachment)
       }
     }
     try {
       const fromAddress = message.from || this.config.auth?.user || 'noreply@localhost'
-      const senderAddress = AddressParser.parseAddress(fromAddress)
+      const senderAddress = SMTP.SmtpAddress.parseAddress(fromAddress)
       const senderEmail = senderAddress.email
-      isValidEmail(senderEmail)
+      Utils.isValidEmail(senderEmail)
       await this.commands.sendCommand(`MAIL FROM:<${senderEmail}>`)
       const allRecipients: Array<{ email: string; displayName?: string }> = []
-      const toRecipients = AddressParser.parseAddressList(message.to)
+      const toRecipients = SMTP.SmtpAddress.parseAddressList(message.to)
       allRecipients.push(...toRecipients)
       if (message.cc) {
-        const ccRecipients = AddressParser.parseAddressList(message.cc)
+        const ccRecipients = SMTP.SmtpAddress.parseAddressList(message.cc)
         allRecipients.push(...ccRecipients)
       }
       if (message.bcc) {
-        const bccRecipients = AddressParser.parseAddressList(message.bcc)
+        const bccRecipients = SMTP.SmtpAddress.parseAddressList(message.bcc)
         allRecipients.push(...bccRecipients)
       }
       const recipientPromises = allRecipients.map((recipient) => {
-        isValidEmail(recipient.email)
+        Utils.isValidEmail(recipient.email)
         return this.commands.sendCommand(`RCPT TO:<${recipient.email}>`)
       })
       await Promise.all(recipientPromises)
@@ -153,7 +157,8 @@ export class SmtpClient {
   }
 
   /**
-   * Upgrades plain TCP connection to TLS encryption.
+   * Upgrade transport to TLS.
+   * @description Starts TLS over existing plain connection.
    */
   private async upgradeToTLS(): Promise<void> {
     if (!this.conn) {

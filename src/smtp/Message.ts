@@ -1,33 +1,35 @@
-import type { EmailMessage, ProcessedContact, SmtpConnectionConfig } from '@app/Types.ts'
-import { AddressParser, CalendarFormatter } from '@smtp/index.ts'
-import { isValidEmbedded } from '@utils/index.ts'
+import type * as Types from '@app/Types.ts'
+import * as SMTP from '@smtp/index.ts'
+import * as Utils from '@utils/index.ts'
 
 /**
- * Formats email messages for SMTP transmission.
- * @description Creates MIME messages with headers, content, and attachments.
+ * Build SMTP MIME message.
+ * @description Formats headers, body, and multipart sections.
  */
-export class MessageFormatter {
+export class SmtpMessage {
   /**
-   * Creates a new message formatter.
+   * Create message formatter.
+   * @description Stores SMTP config for generated headers.
    * @param config - SMTP connection configuration for generating message headers
    */
-  constructor(private config: SmtpConnectionConfig) {}
+  constructor(private config: Types.SmtpConnectionConfig) {}
 
   /**
-   * Formats complete email message for SMTP transmission.
+   * Format complete message.
+   * @description Builds MIME headers and body from input.
    * @param message - Email message to format
    * @returns Formatted MIME message string
    * @throws {Error} When message validation fails
    */
-  formatMessage(message: EmailMessage): string {
-    const fromAddress = AddressParser.parseAddress(message.from)
-    const toAddresses = AddressParser.parseAddressList(message.to)
+  formatMessage(message: Types.EmailMessage): string {
+    const fromAddress = SMTP.SmtpAddress.parseAddress(message.from)
+    const toAddresses = SMTP.SmtpAddress.parseAddressList(message.to)
     const headers = this.buildHeaders(message, fromAddress, toAddresses)
     let body = ''
     const boundary = `boundary_${Date.now()}`
     if (message.embeddedImages && message.embeddedImages.length > 0) {
       headers.push(`Content-Type: multipart/related; boundary="${boundary}"`)
-      body = this.formatembeddedImages(message, boundary)
+      body = this.formatEmbeddedImages(message, boundary)
     } else if (message.calendarEvent) {
       headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`)
       body = this.formatCalendarEvent(message, boundary)
@@ -49,35 +51,36 @@ export class MessageFormatter {
   }
 
   /**
-   * Builds email headers from message data.
+   * Build message headers.
+   * @description Creates standard and custom email headers.
    * @param message - Email message data
    * @param fromAddress - Parsed sender address
    * @param toAddresses - Parsed recipient addresses
    * @returns Array of header strings
    */
   private buildHeaders(
-    message: EmailMessage,
-    fromAddress: ProcessedContact,
-    toAddresses: ProcessedContact[]
+    message: Types.EmailMessage,
+    fromAddress: Types.ProcessedContact,
+    toAddresses: Types.ProcessedContact[]
   ): string[] {
     const headers = [
-      `From: ${AddressParser.formatAddressForHeader(fromAddress)}`,
-      `To: ${toAddresses.map((addr) => AddressParser.formatAddressForHeader(addr)).join(', ')}`,
+      `From: ${SMTP.SmtpAddress.formatAddressForHeader(fromAddress)}`,
+      `To: ${toAddresses.map((addr) => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`,
       `Subject: ${message.subject}`,
       `Date: ${new Date().toUTCString()}`,
       `Message-ID: <${Date.now()}@${this.config.host}>`,
       'MIME-Version: 1.0'
     ]
     if (message.cc) {
-      const ccAddresses = AddressParser.parseAddressList(message.cc)
+      const ccAddresses = SMTP.SmtpAddress.parseAddressList(message.cc)
       headers.push(
-        `Cc: ${ccAddresses.map((addr) => AddressParser.formatAddressForHeader(addr)).join(', ')}`
+        `Cc: ${ccAddresses.map((addr) => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`
       )
     }
     const replyToAddress = message.replyTo
-      ? AddressParser.parseAddress(message.replyTo)
+      ? SMTP.SmtpAddress.parseAddress(message.replyTo)
       : fromAddress
-    headers.push(`Reply-To: ${AddressParser.formatAddressForHeader(replyToAddress)}`)
+    headers.push(`Reply-To: ${SMTP.SmtpAddress.formatAddressForHeader(replyToAddress)}`)
     if (message.headers) {
       for (const [key, value] of Object.entries(message.headers)) {
         headers.push(`${key}: ${value}`)
@@ -87,13 +90,14 @@ export class MessageFormatter {
   }
 
   /**
-   * Formats message with file attachments.
+   * Format attachments section.
+   * @description Builds multipart body including attached files.
    * @param message - Email message with attachments
    * @param boundary - MIME boundary string
    * @returns Formatted message body
    * @throws {Error} When attachments are missing
    */
-  private formatAttachments(message: EmailMessage, boundary: string): string {
+  private formatAttachments(message: Types.EmailMessage, boundary: string): string {
     const parts = []
     if (message.text || message.html) {
       const contentBoundary = `content_${Date.now()}`
@@ -138,13 +142,14 @@ export class MessageFormatter {
   }
 
   /**
-   * Formats message with calendar event.
+   * Format calendar section.
+   * @description Appends text, HTML, and calendar invitation.
    * @param message - Email message with calendar event
    * @param boundary - MIME boundary string
    * @returns Formatted message body
    * @throws {Error} When calendar event is missing
    */
-  private formatCalendarEvent(message: EmailMessage, boundary: string): string {
+  private formatCalendarEvent(message: Types.EmailMessage, boundary: string): string {
     const parts = []
     if (message.text) {
       parts.push(`--${boundary}`)
@@ -167,25 +172,26 @@ export class MessageFormatter {
     if (!message.calendarEvent) {
       throw new Error('Calendar event is required')
     }
-    parts.push(CalendarFormatter.formatCalendarEvent(message.calendarEvent))
+    parts.push(SMTP.SmtpCalendar.formatCalendarEvent(message.calendarEvent))
     parts.push('')
     parts.push(`--${boundary}--`)
     return parts.join('\r\n')
   }
 
   /**
-   * Formats message with embedded images.
+   * Format embedded images section.
+   * @description Builds related parts and inline image payloads.
    * @param message - Email message with embedded attachments
    * @param boundary - MIME boundary string
    * @returns Formatted message body
    * @throws {Error} When embedded attachments are missing
    */
-  private formatembeddedImages(message: EmailMessage, boundary: string): string {
+  private formatEmbeddedImages(message: Types.EmailMessage, boundary: string): string {
     if (!message.embeddedImages) {
       throw new Error('Embedded attachments are required')
     }
     for (const attachment of message.embeddedImages) {
-      isValidEmbedded(attachment)
+      Utils.isValidEmbedded(attachment)
     }
     const parts = []
     if (message.text || message.html) {
@@ -233,21 +239,23 @@ export class MessageFormatter {
   }
 
   /**
-   * Formats HTML-only message.
+   * Format HTML body.
+   * @description Returns HTML content when present.
    * @param message - Email message with HTML content
    * @returns HTML content string
    */
-  private formatHtmlOnly(message: EmailMessage): string {
+  private formatHtmlOnly(message: Types.EmailMessage): string {
     return message.html || ''
   }
 
   /**
-   * Formats message with both text and HTML content.
+   * Format text and HTML.
+   * @description Builds multipart alternative text and HTML.
    * @param message - Email message with both text and HTML content
    * @param boundary - MIME boundary string
    * @returns Formatted message body
    */
-  private formatTextAndHtml(message: EmailMessage, boundary: string): string {
+  private formatTextAndHtml(message: Types.EmailMessage, boundary: string): string {
     return [
       `--${boundary}`,
       'Content-Type: text/plain; charset=utf-8',
@@ -264,11 +272,12 @@ export class MessageFormatter {
   }
 
   /**
-   * Formats text-only message.
+   * Format plain text body.
+   * @description Returns plain text content fallback.
    * @param message - Email message with text content
    * @returns Text content string
    */
-  private formatTextOnly(message: EmailMessage): string {
+  private formatTextOnly(message: Types.EmailMessage): string {
     return message.text || ''
   }
 }

@@ -1,22 +1,48 @@
-import type { SmtpConnectionState } from '@app/Types.ts'
+import type * as Types from '@app/Types.ts'
 
 /**
- * Handles low-level SMTP command execution.
- * @description Handles SMTP command execution with error handling and timeouts.
+ * Authenticate SMTP session.
+ * @description Supports AUTH LOGIN with AUTH PLAIN fallback.
  */
-export class SmtpCommand {
+export class SmtpAuth {
   /**
-   * Creates a new SMTP command handler.
+   * Create auth handler.
+   * @description Stores shared connection state for auth flow.
    * @param state - Shared SMTP connection state
    */
-  constructor(private state: SmtpConnectionState) {}
+  constructor(private state: Types.SmtpConnectionState) {}
 
   /**
-   * Reads SMTP server response.
+   * Perform SMTP authentication.
+   * @description Sends credentials using LOGIN then PLAIN fallback.
+   * @throws {Error} When authentication fails or connection is not available
+   */
+  async authenticate(): Promise<void> {
+    if (!this.state.config.auth) {
+      return
+    }
+    try {
+      await this.sendCommand('AUTH LOGIN')
+      const username = btoa(this.state.config.auth.user)
+      await this.sendCommand(username)
+      const password = btoa(this.state.config.auth.pass)
+      await this.sendCommand(password)
+    } catch {
+      const credentials =
+        `${this.state.config.auth.user}\0${this.state.config.auth.user}\0${this.state.config.auth.pass}`
+      const encoded = btoa(credentials)
+      await this.sendCommand('AUTH PLAIN')
+      await this.sendCommand(encoded)
+    }
+  }
+
+  /**
+   * Read server response.
+   * @description Reads response and validates SMTP status class.
    * @returns Server response string
    * @throws {Error} When connection is closed or server returns error code
    */
-  async readResponse(): Promise<string> {
+  private async readResponse(): Promise<string> {
     if (!this.state.conn && !this.state.tlsConn) {
       throw new Error('Not connected')
     }
@@ -51,11 +77,12 @@ export class SmtpCommand {
   }
 
   /**
-   * Sends SMTP command to server.
+   * Send SMTP command.
+   * @description Writes command and waits for server reply.
    * @param command - SMTP command to send
    * @throws {Error} When command times out or server returns error
    */
-  async sendCommand(command: string): Promise<void> {
+  private async sendCommand(command: string): Promise<void> {
     if (!this.state.conn && !this.state.tlsConn) {
       throw new Error('Not connected')
     }
@@ -67,23 +94,5 @@ export class SmtpCommand {
       await this.state.conn.write(data)
     }
     await this.readResponse()
-  }
-
-  /**
-   * Sends raw data to SMTP server.
-   * @param data - Raw data to send
-   * @throws {Error} When not connected to server or timeout occurs
-   */
-  async sendData(data: string): Promise<void> {
-    if (!this.state.conn && !this.state.tlsConn) {
-      throw new Error('Not connected')
-    }
-    const encoder = new TextEncoder()
-    const encoded = encoder.encode(data)
-    if (this.state.tlsConn) {
-      await this.state.tlsConn.write(encoded)
-    } else if (this.state.conn) {
-      await this.state.conn.write(encoded)
-    }
   }
 }
