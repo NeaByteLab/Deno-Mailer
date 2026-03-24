@@ -71,3 +71,91 @@ Deno.test('isValidConfig rejects auth without type discriminator', () => {
     'auth type must be password or oauth2'
   )
 })
+
+Deno.test('isValidConfig accepts SMTP config with dkim and pool settings', () => {
+  Utils.isValidConfig({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    dkim: {
+      domainName: 'example.com',
+      keySelector: 'mail',
+      privateKey: '-----BEGIN PRIVATE KEY-----test-----END PRIVATE KEY-----'
+    },
+    pool: {
+      maxConnections: 2,
+      maxMessagesPerConnection: 100,
+      idleTimeoutMs: 60000
+    }
+  })
+})
+
+Deno.test('isValidConfig rejects invalid SMTP pool maxConnections', () => {
+  assertThrows(
+    () =>
+      Utils.isValidConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        pool: {
+          maxConnections: 0
+        }
+      }),
+    Error,
+    'maxConnections must be integer >= 1'
+  )
+})
+
+Deno.test('isValidConfig rejects missing SMTP dkim private key', () => {
+  assertThrows(
+    () =>
+      Utils.isValidConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        dkim: {
+          domainName: 'example.com',
+          keySelector: 'mail',
+          privateKey: ''
+        }
+      }),
+    Error,
+    'dkim privateKey is required'
+  )
+})
+
+Deno.test('isValidConfig accepts SMTP boolean pool option', () => {
+  Utils.isValidConfig({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    pool: true
+  })
+})
+
+Deno.test('isValidConfig rejects invalid SMTP pool idle timeout', () => {
+  assertThrows(
+    () =>
+      Utils.isValidConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        pool: {
+          idleTimeoutMs: -1
+        }
+      }),
+    Error,
+    'idleTimeoutMs must be integer >= 0'
+  )
+})
+
+Deno.test('isValidConfig rejects invalid SMTP max messages per connection', () => {
+  assertThrows(
+    () =>
+      Utils.isValidConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        pool: {
+          maxMessagesPerConnection: 0
+        }
+      }),
+    Error,
+    'maxMessagesPerConnection must be integer >= 1'
+  )
+})
