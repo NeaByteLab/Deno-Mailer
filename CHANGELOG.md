@@ -12,6 +12,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Added OAuth2 integration test toggle and token placeholders in `.env.example`
 - Added optional OAuth2 live integration scenario in `tests/Integration.test.ts`
 - Added strict auth config validation test coverage in `tests/utils/Config.test.ts`
+- Added custom header security unit tests in `tests/smtp/Message.test.ts`
 
 ### Changed
 
@@ -19,6 +20,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Updated SMTP auth flow to support XOAUTH2 for OAuth2 credentials
 - Updated SMTP config validation to enforce explicit auth discriminator
 - Updated auth and config types to discriminated union structure
+- Updated SMTP message header handling with strict validation in `src/smtp/Message.ts`
 
 ### Breaking
 
@@ -26,6 +28,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Replaced previous auth credential model with explicit variants:
   `type: 'password'` with `user` and `pass`,
   `type: 'oauth2'` with `user` and `accessToken`
+- Disallowed overriding reserved SMTP headers via `message.headers`
+- Rejected custom headers containing invalid names or CRLF line breaks
 
 ## [0.2.0] - 2026-03-24
 
