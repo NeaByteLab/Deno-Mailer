@@ -3,7 +3,9 @@ import * as App from '@app/index.ts'
 
 const etherealUser = Deno.env.get('ETHEREAL_USER')
 const etherealPass = Deno.env.get('ETHEREAL_PASS')
+const oauth2AccessToken = Deno.env.get('SMTP_OAUTH2_ACCESS_TOKEN')
 const runSecureSmtpTest = Deno.env.get('RUN_SECURE_SMTP_TEST') === 'true'
+const runOAuth2SmtpTest = Deno.env.get('RUN_OAUTH2_SMTP_TEST') === 'true'
 const hasEtherealCredentials = Boolean(etherealUser && etherealPass)
 
 const smtpConfig = {
@@ -11,6 +13,7 @@ const smtpConfig = {
   port: 587,
   secure: false,
   auth: {
+    type: 'password' as const,
     user: etherealUser ?? '',
     pass: etherealPass ?? ''
   }
@@ -21,8 +24,20 @@ const secureSmtpConfig = {
   port: 465,
   secure: true,
   auth: {
+    type: 'password' as const,
     user: etherealUser ?? '',
     pass: etherealPass ?? ''
+  }
+}
+
+const oauth2SmtpConfig = {
+  host: 'smtp.ethereal.email',
+  port: 587,
+  secure: false,
+  auth: {
+    type: 'oauth2' as const,
+    user: etherealUser ?? '',
+    accessToken: oauth2AccessToken ?? ''
   }
 }
 
@@ -183,5 +198,18 @@ Deno.test('send email with string attachment content and 7bit encoding', async (
         encoding: '7bit'
       }
     ]
+  })
+})
+
+Deno.test('send email over oauth2 configuration', async () => {
+  if (!etherealUser || !oauth2AccessToken || !runOAuth2SmtpTest) {
+    return
+  }
+  const sender = App.mailer.transporter(oauth2SmtpConfig)
+  await sender.send({
+    from: `Mailer Integration <${etherealUser}>`,
+    to: `Mailer Integration <${etherealUser}>`,
+    subject: 'Deno-Mailer oauth2 integration test',
+    text: 'OAuth2 send test'
   })
 })
