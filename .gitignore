@@ -1,5 +1,6 @@
 # Deno
 .deno/
+coverage/
 deno.lock
 
 # IDE
@@ -10,5 +11,10 @@ deno.lock
 .DS_Store
 Thumbs.db
 
-# SQLite
-ollama.sqlite
+# Vite / Node
+.vite/
+node_modules/
+dist/
+
+# Environment
+.env

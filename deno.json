@@ -62,7 +62,7 @@
   },
   "tasks": {
     "check": "deno fmt src/ && deno lint src/ && deno check src/",
-    "test": "deno test tests/"
+    "test": "deno test --allow-net --allow-env tests/"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.19",
