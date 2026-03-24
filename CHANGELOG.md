@@ -7,6 +7,26 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- Added OAuth2 integration test toggle and token placeholders in `.env.example`
+- Added optional OAuth2 live integration scenario in `tests/Integration.test.ts`
+- Added strict auth config validation test coverage in `tests/utils/Config.test.ts`
+
+### Changed
+
+- Updated `README.md` and `USAGE.md` to document explicit auth type configuration
+- Updated SMTP auth flow to support XOAUTH2 for OAuth2 credentials
+- Updated SMTP config validation to enforce explicit auth discriminator
+- Updated auth and config types to discriminated union structure
+
+### Breaking
+
+- Removed implicit auth shape without `auth.type`
+- Replaced previous auth credential model with explicit variants:
+  `type: 'password'` with `user` and `pass`,
+  `type: 'oauth2'` with `user` and `accessToken`
+
 ## [0.2.0] - 2026-03-24
 
 ### Added
