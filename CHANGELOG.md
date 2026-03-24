@@ -7,6 +7,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-24
+
 ### Added
 
 - Added test suite under `tests/` covering:
@@ -16,14 +18,33 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   plain text, HTML, attachments, embedded images, calendar invite,
   mixed recipients, custom headers, and secure TLS transport
 - Added test environment setup examples in `README.md` using `.env` and shell exports
+- Added dedicated CI workflow at `.github/workflows/ci.yml` for check and test
+- Added `.env.example` template for integration credentials and secure-test toggle
 
 ### Changed
 
-- Sorted test case descriptions in ascending A-Z order for consistency
-- Improved several test descriptions to be clearer and more specific
 - Expanded `USAGE.md` with attachment encoding options (`base64`, `7bit`, `quoted-printable`)
   and embedded image disposition options (`inline`, `attachment`)
-- Updated `README.md` features to mention transfer encoding support
+- Updated `.gitignore` for env and local build artifacts
+- Updated `README.md` features and testing section with env-based integration flow
+- Updated README badge to use CI workflow status
+- Updated `deno.json` version to `0.2.0`
+- Updated `deno task test` to include net and env permissions
+
+### Breaking
+
+- Renamed SMTP public symbols:
+  `AddressParser` to `SmtpAddress`,
+  `CalendarFormatter` to `SmtpCalendar`,
+  `ConnectionManager` to `SmtpConnection`,
+  `MessageFormatter` to `SmtpMessage`
+- Renamed SMTP module files:
+  `SmtpAuth.ts` to `Auth.ts`,
+  `SmtpClient.ts` to `Client.ts`,
+  `SmtpCommand.ts` to `Command.ts`
+- Renamed utility module file:
+  `ContentId.ts` to `Content.ts`
+- Switched root type re-export to `export type *` in `src/index.ts`
 
 ## [0.1.0] - 2025-10-22
 
@@ -47,5 +68,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Updated docs split between `README.md` and `USAGE.md`
 - Updated `@std/assert` dependency import version
 
-[Unreleased]: https://github.com/NeaByteLab/Deno-Mailer/compare/9618b63...HEAD
+[Unreleased]: https://github.com/NeaByteLab/Deno-Mailer/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/NeaByteLab/Deno-Mailer/compare/9618b63...v0.2.0
 [0.1.0]: https://github.com/NeaByteLab/Deno-Mailer/commit/9618b63
