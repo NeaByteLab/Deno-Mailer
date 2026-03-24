@@ -16,7 +16,7 @@ Lightweight Deno SMTP mailer with flexible configuration and formatting.
 - **Flexible recipients**: supports string, object, and mixed recipient formats
 - **Rich message content**: plain text, HTML, mixed body, and custom headers
 - **Attachments and inline media**: supports file attachments and embedded images
-- **Transfer control options**: supports base64, 7bit, and quoted-printable encodings
+- **Transfer encodings**: base64, 7bit, quoted-printable for attachment content
 - **Calendar invitations**: generates ICS calendar payload for meeting invites
 - **Structured send result**: returns message id, envelope, accepted, rejected, and response
 - **Zero external runtime deps**: built with Deno native capabilities

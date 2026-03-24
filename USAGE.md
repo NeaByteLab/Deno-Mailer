@@ -18,6 +18,7 @@ This document explains the full **Deno Mailer** usage flow, from SMTP configurat
   - [Multiple Recipients](#multiple-recipients)
   - [Advanced Recipient Formats](#advanced-recipient-formats)
 - [Advanced Features](#advanced-features)
+  - [Combining Body Modes](#combining-body-modes)
   - [File Attachments](#file-attachments)
   - [Attachment Encoding Options](#attachment-encoding-options)
   - [Embedded Images](#embedded-images)
@@ -28,6 +29,7 @@ This document explains the full **Deno Mailer** usage flow, from SMTP configurat
   - [Main API](#main-api)
   - [Configuration Options](#configuration-options)
   - [Message Properties](#message-properties)
+  - [Send Result](#send-result)
   - [Error Handling](#error-handling)
 - [Provider Examples](#provider-examples)
   - [Gmail SMTP](#gmail-smtp)
@@ -106,6 +108,8 @@ const transporter = mailer.transporter({
 })
 ```
 
+Optional `dkim.headerFieldNames` lists which message headers are included in the DKIM `h=` tag (use lowercase names). If you omit it, the default set is `from`, `to`, `subject`, `date`, `message-id`, `mime-version`, `content-type`.
+
 ### Pooling and Reuse
 
 ```ts
@@ -129,15 +133,22 @@ const transporter = mailer.transporter({
 
 ### TLS and SSL Options
 
+With `secure: false`, the client opens a plain TCP connection, sends `EHLO`, then:
+
+- If the server advertises `STARTTLS`, the client upgrades to TLS and sends `EHLO` again (this applies to any port where the server offers `STARTTLS`, not only 587).
+- On **port 587**, the server **must** advertise `STARTTLS`. If it does not, the client throws an error.
+
+With `secure: true`, the connection uses TLS from the first byte (typical for port 465).
+
 ```ts
-// Port 587 with STARTTLS upgrade.
+// Port 587: plain connect, then mandatory STARTTLS upgrade after EHLO.
 {
   host: 'smtp.gmail.com',
   port: 587,
   secure: false
 }
 
-// Port 465 with direct TLS.
+// Port 465: TLS from connect.
 {
   host: 'smtp.gmail.com',
   port: 465,
@@ -221,6 +232,18 @@ await transporter.send({
 
 ## Advanced Features
 
+### Combining Body Modes
+
+The formatter builds **one** MIME structure per message. It does **not** combine embedded images, calendar parts, and file attachments into a single custom multipart tree. Evaluation order is:
+
+1. `embeddedImages` → multipart/related (with HTML and related parts)
+2. Else `calendarEvent` → multipart/alternative including the calendar
+3. Else `attachments` → multipart/mixed
+4. Else `html` and `text` together → multipart/alternative
+5. Else `html` only, or plain `text` only
+
+If you set more than one of `embeddedImages`, `calendarEvent`, and `attachments`, the earlier branch wins and the others are ignored for structure (for example calendar plus attachments in one send is not supported as one merged layout).
+
 ### File Attachments
 
 ```ts
@@ -243,6 +266,12 @@ await transporter.send({
 
 ### Attachment Encoding Options
 
+Transfer encoding behavior:
+
+- **`base64`:** Pass **raw** content (`string` as UTF-8 text, or `Uint8Array` as bytes). The library encodes to Base64. Do **not** pass a string that is already Base64 unless you want it encoded again (wrong for binary files).
+- **`7bit`:** Content must be **ASCII only** (bytes 0–127). Non-ASCII input throws.
+- **`quoted-printable`:** Bytes are escaped per quoted-printable rules. The encoder does **not** fold lines to ~76 characters, which some strict MTAs expect for long lines.
+
 ```ts
 // Use base64, 7bit, or quoted-printable transfer encoding.
 await transporter.send({
@@ -253,7 +282,7 @@ await transporter.send({
   attachments: [
     {
       filename: 'base64.txt',
-      content: fileBase64Content,
+      content: rawFileContent,
       contentType: 'text/plain',
       encoding: 'base64'
     },
@@ -414,6 +443,12 @@ await transporter.send({
 })
 ```
 
+Rules:
+
+- Header **names** must match token characters (see RFC 5322 `atext`-style set used in code). Empty names are rejected.
+- Names and values must **not** contain CR or LF.
+- These names are **reserved** and cannot be set via `headers` (the library owns them): `bcc`, `cc`, `content-disposition`, `content-id`, `content-transfer-encoding`, `content-type`, `date`, `from`, `message-id`, `mime-version`, `reply-to`, `subject`, `to`.
+
 ## API Reference
 
 ### Main API
@@ -441,6 +476,7 @@ await transporter.send({
 | `dkim.domainName`               | string         | no       | DKIM signing domain          | `'example.com'`                    |
 | `dkim.keySelector`              | string         | no       | DKIM DNS selector            | `'mail'`                           |
 | `dkim.privateKey`               | string         | no       | PEM private signing key      | `'-----BEGIN PRIVATE KEY-----...'` |
+| `dkim.headerFieldNames`         | string[]       | no       | Headers in DKIM `h=` list    | `['from','to','subject',...]`      |
 
 ### Message Properties
 
@@ -459,12 +495,11 @@ await transporter.send({
 | `calendarEvent`  | object        | no       | Calendar invitation          |
 | `headers`        | object        | no       | Custom email headers         |
 
-Attachment and embedded image encoding supports `base64`, `7bit`, and `quoted-printable`.
-Embedded image disposition supports `inline` and `attachment`.
+Attachment and embedded image `encoding` supports `base64` (library encodes raw content), `7bit` (ASCII only), and `quoted-printable` (no automatic line folding). Embedded image `disposition` supports `inline` and `attachment`.
 
 ### Send Result
 
-`transporter.send()` now resolves a structured result:
+`transporter.send()` resolves a structured result:
 
 - `messageId`: Message-ID header value
 - `envelope`: SMTP envelope sender and recipients
@@ -474,16 +509,19 @@ Embedded image disposition supports `inline` and `attachment`.
 
 ### Error Handling
 
+Many failures surface as `Error` messages prefixed with `Failed to send message:` or `SMTP connection failed:` plus the underlying reason. Simple `message.includes('…')` checks can miss cases if the wording changes, so prefer logging the full message or matching a broader substring.
+
 ```ts
 // Catch transport or SMTP response errors.
 try {
   await transporter.send(message)
 } catch (error) {
-  console.error('Email failed:', error.message)
-  if (error.message.includes('authentication')) {
+  const text = error instanceof Error ? error.message : String(error)
+  console.error('Email failed:', text)
+  if (/authentication|auth/i.test(text)) {
     // Handle auth error.
-  } else if (error.message.includes('connection')) {
-    // Handle connectivity error.
+  } else if (/connection|connect|STARTTLS|TLS/i.test(text)) {
+    // Handle connectivity or TLS error.
   }
 }
 ```
@@ -554,7 +592,8 @@ const transporter = mailer.transporter({
 
 ### TLS Errors
 
-- Use `secure: false` for `587` (STARTTLS)
+- On port `587`, the server must advertise `STARTTLS` or the client will error
+- Use `secure: false` for `587` (STARTTLS after EHLO)
 - Use `secure: true` for `465` (direct TLS)
 - Verify the server certificate chain
 
@@ -566,6 +605,7 @@ try {
   await transporter.send(message)
   console.log('Email sent successfully')
 } catch (error) {
-  console.error('SMTP Error:', error.message)
+  const text = error instanceof Error ? error.message : String(error)
+  console.error('SMTP Error:', text)
 }
 ```
