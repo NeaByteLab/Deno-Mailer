@@ -22,6 +22,25 @@ Deno.test('SmtpMessage accepts safe custom headers', () => {
   assertMatch(formattedMessage, /X-Trace_Id: trace-123/)
 })
 
+Deno.test('SmtpMessage base64 encodes string attachment content', () => {
+  const formattedMessage = smtpMessage.formatMessage({
+    from: 'sender@example.com',
+    to: 'receiver@example.com',
+    subject: 'Attachment',
+    text: 'body',
+    attachments: [
+      {
+        filename: 'hello.txt',
+        content: 'Hello',
+        contentType: 'text/plain',
+        encoding: 'base64'
+      }
+    ]
+  })
+  assertMatch(formattedMessage, /Content-Transfer-Encoding: base64/)
+  assertMatch(formattedMessage, /SGVsbG8=/)
+})
+
 Deno.test('SmtpMessage formats multipart html and text', () => {
   const formattedMessage = smtpMessage.formatMessage({
     from: 'sender@example.com',
@@ -45,6 +64,25 @@ Deno.test('SmtpMessage formats plain text message', () => {
   assertMatch(formattedMessage, /Content-Type: text\/plain; charset=utf-8/)
   assertMatch(formattedMessage, /Subject: Plain/)
   assertMatch(formattedMessage, /hello/)
+})
+
+Deno.test('SmtpMessage quoted-printable encodes utf8 attachment content', () => {
+  const formattedMessage = smtpMessage.formatMessage({
+    from: 'sender@example.com',
+    to: 'receiver@example.com',
+    subject: 'Attachment',
+    text: 'body',
+    attachments: [
+      {
+        filename: 'hello.txt',
+        content: 'Halo ñ',
+        contentType: 'text/plain',
+        encoding: 'quoted-printable'
+      }
+    ]
+  })
+  assertMatch(formattedMessage, /Content-Transfer-Encoding: quoted-printable/)
+  assertMatch(formattedMessage, /Halo =C3=B1/)
 })
 
 Deno.test('SmtpMessage rejects custom header names with invalid characters', () => {
@@ -112,6 +150,28 @@ Deno.test('SmtpMessage rejects empty custom header names', () => {
       }),
     Error,
     'name cannot be empty'
+  )
+})
+
+Deno.test('SmtpMessage rejects non-ascii attachment for 7bit encoding', () => {
+  assertThrows(
+    () =>
+      smtpMessage.formatMessage({
+        from: 'sender@example.com',
+        to: 'receiver@example.com',
+        subject: 'Attachment',
+        text: 'body',
+        attachments: [
+          {
+            filename: 'hello.txt',
+            content: 'Halo ñ',
+            contentType: 'text/plain',
+            encoding: '7bit'
+          }
+        ]
+      }),
+    Error,
+    '7bit encoding requires ASCII-only content'
   )
 })
 
