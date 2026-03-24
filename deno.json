@@ -1,6 +1,6 @@
 {
   "name": "@neabyte/deno-mailer",
-  "description": "A lightweight SMTP client for Deno. Built with native APIs, zero dependencies, simple setup",
+  "description": "Lightweight Deno SMTP mailer with flexible configuration and formatting",
   "version": "0.1.0",
   "type": "module",
   "license": "MIT",
@@ -11,7 +11,11 @@
     "checkJs": false,
     "exactOptionalPropertyTypes": true,
     "jsx": "react",
-    "lib": ["deno.ns", "dom"],
+    "jsxFactory": "React.createElement",
+    "jsxFragmentFactory": "React.Fragment",
+    "lib": ["deno.ns", "deno.worker", "dom", "dom.asynciterable"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "noErrorTruncation": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
@@ -47,48 +51,18 @@
     "include": ["src/"],
     "rules": {
       "tags": ["fresh", "jsr", "jsx", "react", "recommended", "workspace"],
-      "include": [
-        "ban-untagged-todo",
-        "camelcase",
-        "default-param-last",
-        "eqeqeq",
-        "explicit-function-return-type",
-        "explicit-module-boundary-types",
-        "guard-for-in",
-        "no-await-in-loop",
-        "no-boolean-literal-for-arguments",
-        "no-const-assign",
-        "no-eval",
-        "no-implicit-declare-namespace-export",
-        "no-inferrable-types",
-        "no-invalid-triple-slash-reference",
-        "no-non-null-asserted-optional-chain",
-        "no-non-null-assertion",
-        "no-self-compare",
-        "no-sparse-arrays",
-        "no-sync-fn-in-async-fn",
-        "no-throw-literal",
-        "no-undef",
-        "no-useless-rename",
-        "no-top-level-await",
-        "single-var-declarator"
-      ],
-      "exclude": [
-        "no-console",
-        "no-external-import",
-        "prefer-ascii",
-        "prefer-primordials"
-      ]
+      "exclude": ["no-console", "no-external-import", "prefer-ascii", "prefer-primordials"]
     }
   },
   "lock": true,
+  "nodeModulesDir": "auto",
   "test": {
     "include": ["tests/**/*.ts"],
     "exclude": ["tests/**/*.d.ts"]
   },
   "tasks": {
     "check": "deno fmt src/ && deno lint src/ && deno check src/",
-    "test": "deno fmt tests/ && deno lint tests/ && deno test --no-check"
+    "test": "deno test tests/"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.15",
@@ -98,17 +72,6 @@
     "@tests/": "./tests/"
   },
   "publish": {
-    "exclude": [
-      "*.spec.ts",
-      "*.test.ts",
-      ".github/",
-      "coverage/",
-      "deno.json",
-      "development/",
-      "dist/",
-      "examples/",
-      "issue-testing/",
-      "tests/"
-    ]
+    "include": ["src/", "README.md", "LICENSE", "deno.json"]
   }
 }

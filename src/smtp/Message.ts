@@ -44,7 +44,6 @@ export class MessageFormatter {
       headers.push('Content-Type: text/plain; charset=utf-8')
       body = this.formatTextOnly(message)
     }
-
     const formattedMessage = headers.join('\r\n') + '\r\n\r\n' + body
     return formattedMessage + '\r\n'
   }
