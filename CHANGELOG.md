@@ -98,5 +98,5 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Updated `@std/assert` dependency import version
 
 [Unreleased]: https://github.com/NeaByteLab/Deno-Mailer/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/NeaByteLab/Deno-Mailer/compare/9618b63...v0.2.0
-[0.1.0]: https://github.com/NeaByteLab/Deno-Mailer/commit/9618b63
+[0.2.0]: https://github.com/NeaByteLab/Deno-Mailer/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/NeaByteLab/Deno-Mailer/releases/tag/v0.1.0
