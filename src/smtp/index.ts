@@ -1,3 +1,7 @@
+/**
+ * Central export for SMTP layer.
+ * @description Client auth transport commands addressing MIME calendar.
+ */
 export * from '@smtp/Address.ts'
 export * from '@smtp/Auth.ts'
 export * from '@smtp/Calendar.ts'

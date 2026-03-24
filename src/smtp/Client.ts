@@ -7,20 +7,20 @@ import * as Utils from '@utils/index.ts'
  * @description Manages connection auth and delivery flow.
  */
 export class SmtpClient {
-  /** Raw TCP connection */
-  private conn: Deno.Conn | null = null
-  /** TLS encrypted connection */
-  private tlsConn: Deno.TlsConn | null = null
-  /** SMTP server configuration */
-  private config: Types.SmtpConnectionConfig
-  /** Internal connection state tracking */
-  private connectionState: Types.SmtpConnectionState
-  /** SMTP command handler */
-  private commands: SMTP.SmtpCommand
   /** SMTP authentication handler */
   private auth: SMTP.SmtpAuth
+  /** SMTP command handler */
+  private commands: SMTP.SmtpCommand
+  /** SMTP server configuration */
+  private config: Types.SmtpConnectionConfig
+  /** Raw TCP connection */
+  private conn: Deno.Conn | null = null
+  /** Internal connection state tracking */
+  private connectionState: Types.SmtpConnectionState
   /** Email message formatter */
   private messageFormatter: SMTP.SmtpMessage
+  /** TLS encrypted connection */
+  private tlsConn: Deno.TlsConn | null = null
 
   /**
    * Create SMTP client.
@@ -130,19 +130,19 @@ export class SmtpClient {
     }
     if (message.attachments && message.attachments.length > 0) {
       for (const attachment of message.attachments) {
-        Utils.isValidAttachment(attachment)
+        Utils.validateEmailAttachment(attachment)
       }
     }
     if (message.embeddedImages && message.embeddedImages.length > 0) {
       for (const attachment of message.embeddedImages) {
-        Utils.isValidEmbedded(attachment)
+        Utils.validateEmbeddedImage(attachment)
       }
     }
     try {
       const fromAddress = message.from || this.config.auth?.user || 'noreply@localhost'
       const senderAddress = SMTP.SmtpAddress.parseAddress(fromAddress)
       const senderEmail = senderAddress.email
-      Utils.isValidEmail(senderEmail)
+      Utils.validateMailboxAddress(senderEmail)
       await this.commands.sendCommand(`MAIL FROM:<${senderEmail}>`)
       const allRecipients: Array<{ email: string; displayName?: string }> = []
       const toRecipients = SMTP.SmtpAddress.parseAddressList(message.to)
@@ -158,7 +158,7 @@ export class SmtpClient {
       const acceptedRecipients: string[] = []
       const rejectedRecipients: string[] = []
       for (const recipient of allRecipients) {
-        Utils.isValidEmail(recipient.email)
+        Utils.validateMailboxAddress(recipient.email)
         try {
           await this.commands.sendCommand(`RCPT TO:<${recipient.email}>`)
           acceptedRecipients.push(recipient.email)
@@ -171,8 +171,8 @@ export class SmtpClient {
       }
       await this.commands.sendCommand('DATA')
       const formattedMessage = this.messageFormatter.formatMessage(message)
-      const dkimSignedMessage = await this.applyDkimSignatureIfEnabled(formattedMessage)
-      const smtpSafeMessage = this.toSmtpDataStream(dkimSignedMessage)
+      const dkimSignedMessage = await this.signWithDkim(formattedMessage)
+      const smtpSafeMessage = Utils.encodeSmtpData(dkimSignedMessage)
       await this.commands.sendData(smtpSafeMessage)
       const dataResponse = await this.commands.sendCommand('.')
       const messageIdMatch = dkimSignedMessage.match(/\r\nMessage-ID:\s*(<[^>\r\n]+>)/i) ||
@@ -202,7 +202,7 @@ export class SmtpClient {
    * @returns DKIM-signed message content or original input
    * @throws {Error} When DKIM configuration or key import is invalid
    */
-  private async applyDkimSignatureIfEnabled(messageContent: string): Promise<string> {
+  private async signWithDkim(messageContent: string): Promise<string> {
     if (!this.config.dkim) {
       return messageContent
     }
@@ -275,17 +275,6 @@ export class SmtpClient {
     const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
     const dkimHeader = `DKIM-Signature: ${dkimHeaderPrefix}${signatureBase64}`
     return `${dkimHeader}\r\n${rawHeaderSection}\r\n\r\n${rawBodySection}`
-  }
-
-  /**
-   * Prepare SMTP DATA payload.
-   * @description Applies CRLF normalization and dot-stuffing.
-   * @param messageContent - Raw MIME message content
-   * @returns SMTP-safe DATA payload
-   */
-  private toSmtpDataStream(messageContent: string): string {
-    const normalizedContent = messageContent.replace(/\r?\n/g, '\r\n')
-    return normalizedContent.replace(/(^|\r\n)\./g, '$1..')
   }
 
   /**

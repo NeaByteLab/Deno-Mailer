@@ -1,5 +1,15 @@
-import { assertEquals, assertThrows } from '@std/assert'
+import { assertEquals, assertMatch, assertThrows } from '@std/assert'
 import * as SMTP from '@smtp/index.ts'
+
+Deno.test('SmtpAddress formatForHeader escapes quotes and backslashes in display names', () => {
+  const header = SMTP.SmtpAddress.formatForHeader({
+    email: 'user@example.com',
+    displayName: 'Say "Hi" \\ friend'
+  })
+  assertMatch(header, /\\"/)
+  assertMatch(header, /\\\\/)
+  assertEquals(header.includes('user@example.com'), true)
+})
 
 Deno.test('SmtpAddress parses display name format', () => {
   const parsedAddress = SMTP.SmtpAddress.parseAddress('Jane Doe <jane@example.com>')

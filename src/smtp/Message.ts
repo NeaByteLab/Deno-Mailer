@@ -8,9 +8,9 @@ import * as Utils from '@utils/index.ts'
  */
 export class SmtpMessage {
   /** Allowed custom header name pattern */
-  private readonly customHeaderNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
+  private readonly headerKeyPattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
   /** Reserved custom headers to block */
-  private readonly blockedCustomHeaderNames = new Set([
+  private readonly reservedHeaderNames = new Set([
     'bcc',
     'cc',
     'content-disposition',
@@ -41,6 +41,9 @@ export class SmtpMessage {
    * @throws {Error} When message validation fails
    */
   formatMessage(message: Types.EmailMessage): string {
+    if (message.subject.includes('\r') || message.subject.includes('\n')) {
+      throw new Error('Subject cannot contain line break characters')
+    }
     const fromAddress = SMTP.SmtpAddress.parseAddress(message.from)
     const toAddresses = SMTP.SmtpAddress.parseAddressList(message.to)
     const headers = this.buildHeaders(message, fromAddress, toAddresses)
@@ -51,7 +54,7 @@ export class SmtpMessage {
       body = this.formatEmbeddedImages(message, boundary)
     } else if (message.calendarEvent) {
       headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`)
-      body = this.formatCalendarEvent(message, boundary)
+      body = this.buildCalendarBody(message, boundary)
     } else if (message.attachments && message.attachments.length > 0) {
       headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`)
       body = this.formatAttachments(message, boundary)
@@ -70,6 +73,43 @@ export class SmtpMessage {
   }
 
   /**
+   * Format calendar section.
+   * @description Appends text HTML and calendar invitation.
+   * @param message - Email message with calendar event
+   * @param boundary - MIME boundary string
+   * @returns Formatted message body
+   * @throws {Error} When calendar event is missing
+   */
+  private buildCalendarBody(message: Types.EmailMessage, boundary: string): string {
+    const mimeParts: string[] = []
+    if (message.text) {
+      mimeParts.push(`--${boundary}`)
+      mimeParts.push('Content-Type: text/plain; charset=utf-8')
+      mimeParts.push('')
+      mimeParts.push(message.text)
+      mimeParts.push('')
+    }
+    if (message.html) {
+      mimeParts.push(`--${boundary}`)
+      mimeParts.push('Content-Type: text/html; charset=utf-8')
+      mimeParts.push('')
+      mimeParts.push(message.html)
+      mimeParts.push('')
+    }
+    mimeParts.push(`--${boundary}`)
+    mimeParts.push('Content-Type: text/calendar; charset=utf-8; method=REQUEST')
+    mimeParts.push('Content-Disposition: inline')
+    mimeParts.push('')
+    if (!message.calendarEvent) {
+      throw new Error('Calendar event is required')
+    }
+    mimeParts.push(SMTP.SmtpCalendar.formatCalendarEvent(message.calendarEvent))
+    mimeParts.push('')
+    mimeParts.push(`--${boundary}--`)
+    return mimeParts.join('\r\n')
+  }
+
+  /**
    * Build message headers.
    * @description Creates standard and custom email headers.
    * @param message - Email message data
@@ -83,8 +123,8 @@ export class SmtpMessage {
     toAddresses: Types.ProcessedContact[]
   ): string[] {
     const headers = [
-      `From: ${SMTP.SmtpAddress.formatAddressForHeader(fromAddress)}`,
-      `To: ${toAddresses.map((addr) => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`,
+      `From: ${SMTP.SmtpAddress.formatForHeader(fromAddress)}`,
+      `To: ${toAddresses.map((addr) => SMTP.SmtpAddress.formatForHeader(addr)).join(', ')}`,
       `Subject: ${message.subject}`,
       `Date: ${new Date().toUTCString()}`,
       `Message-ID: <${Date.now()}@${this.config.host}>`,
@@ -93,13 +133,13 @@ export class SmtpMessage {
     if (message.cc) {
       const ccAddresses = SMTP.SmtpAddress.parseAddressList(message.cc)
       headers.push(
-        `Cc: ${ccAddresses.map((addr) => SMTP.SmtpAddress.formatAddressForHeader(addr)).join(', ')}`
+        `Cc: ${ccAddresses.map((addr) => SMTP.SmtpAddress.formatForHeader(addr)).join(', ')}`
       )
     }
     const replyToAddress = message.replyTo
       ? SMTP.SmtpAddress.parseAddress(message.replyTo)
       : fromAddress
-    headers.push(`Reply-To: ${SMTP.SmtpAddress.formatAddressForHeader(replyToAddress)}`)
+    headers.push(`Reply-To: ${SMTP.SmtpAddress.formatForHeader(replyToAddress)}`)
     if (message.headers) {
       for (const [key, value] of Object.entries(message.headers)) {
         headers.push(this.formatCustomHeader(key, value))
@@ -211,6 +251,7 @@ export class SmtpMessage {
       throw new Error('Attachments are required')
     }
     for (const attachment of message.attachments) {
+      Utils.validateEmailAttachment(attachment)
       mimeParts.push(`--${boundary}`)
       mimeParts.push(`Content-Type: ${attachment.contentType || 'application/octet-stream'}`)
       mimeParts.push(`Content-Disposition: attachment; filename="${attachment.filename}"`)
@@ -220,43 +261,6 @@ export class SmtpMessage {
       mimeParts.push(this.encodeTransferContent(attachment.content, transferEncoding))
       mimeParts.push('')
     }
-    mimeParts.push(`--${boundary}--`)
-    return mimeParts.join('\r\n')
-  }
-
-  /**
-   * Format calendar section.
-   * @description Appends text HTML and calendar invitation.
-   * @param message - Email message with calendar event
-   * @param boundary - MIME boundary string
-   * @returns Formatted message body
-   * @throws {Error} When calendar event is missing
-   */
-  private formatCalendarEvent(message: Types.EmailMessage, boundary: string): string {
-    const mimeParts: string[] = []
-    if (message.text) {
-      mimeParts.push(`--${boundary}`)
-      mimeParts.push('Content-Type: text/plain; charset=utf-8')
-      mimeParts.push('')
-      mimeParts.push(message.text)
-      mimeParts.push('')
-    }
-    if (message.html) {
-      mimeParts.push(`--${boundary}`)
-      mimeParts.push('Content-Type: text/html; charset=utf-8')
-      mimeParts.push('')
-      mimeParts.push(message.html)
-      mimeParts.push('')
-    }
-    mimeParts.push(`--${boundary}`)
-    mimeParts.push('Content-Type: text/calendar; charset=utf-8; method=REQUEST')
-    mimeParts.push('Content-Disposition: inline')
-    mimeParts.push('')
-    if (!message.calendarEvent) {
-      throw new Error('Calendar event is required')
-    }
-    mimeParts.push(SMTP.SmtpCalendar.formatCalendarEvent(message.calendarEvent))
-    mimeParts.push('')
     mimeParts.push(`--${boundary}--`)
     return mimeParts.join('\r\n')
   }
@@ -275,10 +279,10 @@ export class SmtpMessage {
     if (trimmedHeaderKey.length === 0) {
       throw new Error('Custom header name cannot be empty')
     }
-    if (this.blockedCustomHeaderNames.has(normalizedHeaderKey)) {
+    if (this.reservedHeaderNames.has(normalizedHeaderKey)) {
       throw new Error(`Custom header "${trimmedHeaderKey}" is reserved and cannot be overridden`)
     }
-    if (!this.customHeaderNamePattern.test(trimmedHeaderKey)) {
+    if (!this.headerKeyPattern.test(trimmedHeaderKey)) {
       throw new Error(`Custom header "${trimmedHeaderKey}" contains invalid characters`)
     }
     if (trimmedHeaderKey.includes('\r') || trimmedHeaderKey.includes('\n')) {
@@ -303,7 +307,7 @@ export class SmtpMessage {
       throw new Error('Embedded attachments are required')
     }
     for (const attachment of message.embeddedImages) {
-      Utils.isValidEmbedded(attachment)
+      Utils.validateEmbeddedImage(attachment)
     }
     const mimeParts: string[] = []
     if (message.text || message.html) {

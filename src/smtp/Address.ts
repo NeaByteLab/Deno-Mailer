@@ -11,7 +11,7 @@ export class SmtpAddress {
    * @param address - Processed contact information
    * @returns Formatted address string
    */
-  static formatAddressForHeader(address: Types.ProcessedContact): string {
+  static formatForHeader(address: Types.ProcessedContact): string {
     if (address.displayName) {
       const escapedName = address.displayName.replace(/[",\\]/g, '\\$&')
       return `"${escapedName}" <${address.email}>`
