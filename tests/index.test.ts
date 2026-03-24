@@ -13,6 +13,35 @@ Deno.test('mailer transporter rejects invalid config', () => {
   )
 })
 
+Deno.test('mailer transporter rejects password auth missing pass', () => {
+  assertThrows(
+    () =>
+      App.mailer.transporter({
+        host: 'smtp.example.com',
+        port: 587,
+        auth: {
+          type: 'password',
+          user: 'user@example.com',
+          pass: ''
+        }
+      }),
+    Error,
+    'password is required'
+  )
+})
+
+Deno.test('mailer transporter rejects zero port', () => {
+  assertThrows(
+    () =>
+      App.mailer.transporter({
+        host: 'smtp.example.com',
+        port: 0
+      }),
+    Error,
+    'SMTP port is required'
+  )
+})
+
 Deno.test('mailer transporter returns sender with send function', () => {
   const sender = App.mailer.transporter({
     host: 'smtp.ethereal.email',
