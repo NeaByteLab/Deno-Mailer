@@ -15,6 +15,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Added custom header security unit tests in `tests/smtp/Message.test.ts`
 - Added SMTP config options for DKIM signing and connection pooling
 - Added structured SMTP send result type with envelope and recipient status fields
+- Added transfer-encoding unit tests for `base64`, `quoted-printable`, and `7bit` payload behavior
 
 ### Changed
 
@@ -25,6 +26,13 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Updated SMTP message header handling with strict validation in `src/smtp/Message.ts`
 - Updated transporter flow to support pooled SMTP client reuse
 - Updated SMTP client send flow to return structured delivery metadata
+- Updated SMTP command response parsing to handle multiline server responses reliably
+- Updated SMTP connection handshake to use `EHLO` and re-send `EHLO` after STARTTLS upgrade
+- Updated STARTTLS negotiation to require advertised capability on submission flow
+- Updated SMTP DATA payload sending to apply CRLF normalization and RFC 5321 dot-stuffing
+- Updated attachment and embedded image encoding logic to match declared transfer encoding
+- Updated `src` JSDoc style for consistency (`index.ts`, `Types.ts`, `utils`, `smtp`)
+- Reordered `tests/smtp/Message.test.ts` case names alphabetically
 
 ### Breaking
 
