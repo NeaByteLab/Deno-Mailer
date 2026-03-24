@@ -2,19 +2,19 @@ import type * as Types from '@app/Types.ts'
 
 /**
  * Execute SMTP wire commands.
- * @description Sends commands and validates protocol responses.
+ * @description Sends commands and validates SMTP responses.
  */
 export class SmtpCommand {
   /**
    * Create command handler.
-   * @description Stores shared state for SMTP transport I/O.
+   * @description Stores shared SMTP transport state.
    * @param state - Shared SMTP connection state
    */
   constructor(private state: Types.SmtpConnectionState) {}
 
   /**
    * Read server response.
-   * @description Reads response and validates SMTP status class.
+   * @description Reads server reply until final status line.
    * @returns Server response string
    * @throws {Error} When connection is closed or server returns error code
    */
@@ -33,28 +33,34 @@ export class SmtpCommand {
         throw new Error('Connection closed')
       }
     }
-    const readUntilComplete = async (response: string): Promise<string> => {
-      const n = await readChunk()
-      if (n === null) {
+    let response = ''
+    while (true) {
+      const bytesRead = await readChunk()
+      if (bytesRead === null) {
         throw new Error('Connection closed')
       }
-      const newResponse = response + decoder.decode(buffer.subarray(0, n))
-      if (newResponse.endsWith('\r\n')) {
-        return newResponse
+      response += decoder.decode(buffer.subarray(0, bytesRead))
+      const completeLines = response.split('\r\n').filter(line => line.length > 0)
+      const lastLine = completeLines[completeLines.length - 1]
+      if (!lastLine) {
+        continue
       }
-      return await readUntilComplete(newResponse)
+      if (/^\d{3}\s/.test(lastLine)) {
+        break
+      }
     }
-    const response = await readUntilComplete('')
-    const code = response.substring(0, 3)
-    if (!response.startsWith('2') && !response.startsWith('3')) {
-      throw new Error(`SMTP Error ${code}: ${response}`)
+    const finalLines = response.split('\r\n').filter(line => line.length > 0)
+    const finalLine = finalLines[finalLines.length - 1] ?? response
+    const statusCode = finalLine.substring(0, 3)
+    if (!finalLine.startsWith('2') && !finalLine.startsWith('3')) {
+      throw new Error(`SMTP Error ${statusCode}: ${response}`)
     }
     return response
   }
 
   /**
    * Send SMTP command.
-   * @description Writes command and waits for server reply.
+   * @description Writes command and waits for response.
    * @param command - SMTP command to send
    * @returns Server response string
    * @throws {Error} When command times out or server returns error
@@ -64,11 +70,11 @@ export class SmtpCommand {
       throw new Error('Not connected')
     }
     const encoder = new TextEncoder()
-    const data = encoder.encode(`${command}\r\n`)
+    const commandPayload = encoder.encode(`${command}\r\n`)
     if (this.state.tlsConn) {
-      await this.state.tlsConn.write(data)
+      await this.state.tlsConn.write(commandPayload)
     } else if (this.state.conn) {
-      await this.state.conn.write(data)
+      await this.state.conn.write(commandPayload)
     }
     return await this.readResponse()
   }

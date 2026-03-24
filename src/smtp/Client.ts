@@ -4,7 +4,7 @@ import * as Utils from '@utils/index.ts'
 
 /**
  * Send email through SMTP.
- * @description Manages connection, auth, and message delivery flow.
+ * @description Manages connection auth and delivery flow.
  */
 export class SmtpClient {
   /** Raw TCP connection */
@@ -41,7 +41,7 @@ export class SmtpClient {
 
   /**
    * Connect to SMTP server.
-   * @description Opens socket, upgrades TLS, then authenticates.
+   * @description Opens socket upgrades TLS then authenticates.
    * @throws {Error} When connection fails or authentication is rejected
    */
   async connect(): Promise<void> {
@@ -53,7 +53,7 @@ export class SmtpClient {
         })
         this.connectionState.tlsConn = this.tlsConn
         await this.commands.readResponse()
-        await this.commands.sendCommand(`HELO ${this.config.host}`)
+        await this.commands.sendCommand(`EHLO ${this.config.host}`)
       } else {
         this.conn = await Deno.connect({
           hostname: this.config.host,
@@ -61,10 +61,15 @@ export class SmtpClient {
         })
         this.connectionState.conn = this.conn
         await this.commands.readResponse()
-        await this.commands.sendCommand(`HELO ${this.config.host}`)
-        if (this.config.port === 587) {
-          await this.commands.sendCommand('startTLS')
+        const ehloResponse = await this.commands.sendCommand(`EHLO ${this.config.host}`)
+        const hasStartTlsSupport = /\bSTARTTLS\b/i.test(ehloResponse)
+        if (this.config.port === 587 && !hasStartTlsSupport) {
+          throw new Error('STARTTLS is required on port 587 but server does not advertise support')
+        }
+        if (hasStartTlsSupport) {
+          await this.commands.sendCommand('STARTTLS')
           await this.upgradeToTLS()
+          await this.commands.sendCommand(`EHLO ${this.config.host}`)
         }
       }
       if (this.config.auth) {
@@ -105,7 +110,7 @@ export class SmtpClient {
 
   /**
    * Report connection availability.
-   * @description Returns true when TCP or TLS channel is active.
+   * @description Returns true when TCP or TLS is active.
    * @returns True when connection is active
    */
   get isConnected(): boolean {
@@ -114,7 +119,7 @@ export class SmtpClient {
 
   /**
    * Send SMTP message.
-   * @description Validates recipients, sends envelope, then DATA.
+   * @description Validates recipients sends envelope then DATA.
    * @param message - The email message to send
    * @returns Structured SMTP delivery result
    * @throws {Error} When message validation fails or transmission is unsuccessful
@@ -165,18 +170,20 @@ export class SmtpClient {
         throw new Error('All recipients were rejected by SMTP server')
       }
       await this.commands.sendCommand('DATA')
-      const messageContent = this.messageFormatter.formatMessage(message)
-      const signedMessageContent = await this.applyDkimSignatureIfEnabled(messageContent)
-      await this.commands.sendData(signedMessageContent)
+      const formattedMessage = this.messageFormatter.formatMessage(message)
+      const dkimSignedMessage = await this.applyDkimSignatureIfEnabled(formattedMessage)
+      const smtpSafeMessage = this.toSmtpDataStream(dkimSignedMessage)
+      await this.commands.sendData(smtpSafeMessage)
       const dataResponse = await this.commands.sendCommand('.')
-      const messageIdMatch = signedMessageContent.match(/\r\nMessage-ID:\s*(<[^>\r\n]+>)/i) ||
-        signedMessageContent.match(/^Message-ID:\s*(<[^>\r\n]+>)/i)
+      const messageIdMatch =
+        dkimSignedMessage.match(/\r\nMessage-ID:\s*(<[^>\r\n]+>)/i) ||
+        dkimSignedMessage.match(/^Message-ID:\s*(<[^>\r\n]+>)/i)
       const messageId = messageIdMatch ? (messageIdMatch[1] ?? '') : ''
       return {
         acceptedRecipients,
         envelope: {
           from: senderEmail,
-          to: allRecipients.map((recipient) => recipient.email)
+          to: allRecipients.map(recipient => recipient.email)
         },
         messageId,
         rejectedRecipients,
@@ -190,8 +197,8 @@ export class SmtpClient {
   }
 
   /**
-   * Apply DKIM signature when enabled.
-   * @description Signs formatted message and prepends DKIM-Signature header.
+   * Apply DKIM signature.
+   * @description Signs message and prepends DKIM-Signature header.
    * @param messageContent - Fully formatted SMTP message content
    * @returns DKIM-signed message content or original input
    * @throws {Error} When DKIM configuration or key import is invalid
@@ -209,9 +216,9 @@ export class SmtpClient {
     const rawHeaderLines = rawHeaderSection.split('\r\n')
     const selectedHeaderNames =
       this.config.dkim.headerFieldNames && this.config.dkim.headerFieldNames.length > 0
-        ? this.config.dkim.headerFieldNames.map((headerName) => headerName.toLowerCase())
+        ? this.config.dkim.headerFieldNames.map(headerName => headerName.toLowerCase())
         : ['from', 'to', 'subject', 'date', 'message-id', 'mime-version', 'content-type']
-    const selectedHeaderLines = rawHeaderLines.filter((headerLine) => {
+    const selectedHeaderLines = rawHeaderLines.filter(headerLine => {
       const separatorIndex = headerLine.indexOf(':')
       if (separatorIndex < 1) {
         return false
@@ -219,11 +226,11 @@ export class SmtpClient {
       const headerName = headerLine.slice(0, separatorIndex).trim().toLowerCase()
       return selectedHeaderNames.includes(headerName)
     })
-    const signedHeaderNames = selectedHeaderLines.map((headerLine) => {
+    const signedHeaderNames = selectedHeaderLines.map(headerLine => {
       const separatorIndex = headerLine.indexOf(':')
       return headerLine.slice(0, separatorIndex).trim().toLowerCase()
     })
-    const canonicalizedHeaderLines = selectedHeaderLines.map((headerLine) => {
+    const canonicalizedHeaderLines = selectedHeaderLines.map(headerLine => {
       const separatorIndex = headerLine.indexOf(':')
       const headerName = headerLine.slice(0, separatorIndex).trim().toLowerCase()
       const headerValue = headerLine
@@ -242,15 +249,14 @@ export class SmtpClient {
     const domainName = this.config.dkim.domainName
     const keySelector = this.config.dkim.keySelector
     const signedHeaderList = signedHeaderNames.join(':')
-    const dkimHeaderPrefix =
-      `v=1; a=rsa-sha256; c=relaxed/relaxed; d=${domainName}; s=${keySelector}; h=${signedHeaderList}; bh=${bodyHashBase64}; b=`
+    const dkimHeaderPrefix = `v=1; a=rsa-sha256; c=relaxed/relaxed; d=${domainName}; s=${keySelector}; h=${signedHeaderList}; bh=${bodyHashBase64}; b=`
     const dkimSigningLine = `dkim-signature:${dkimHeaderPrefix}`
     const signingPayload = [...canonicalizedHeaderLines, dkimSigningLine].join('\r\n')
     const pemBody = this.config.dkim.privateKey
       .replace('-----BEGIN PRIVATE KEY-----', '')
       .replace('-----END PRIVATE KEY-----', '')
       .replace(/\s+/g, '')
-    const binaryDer = Uint8Array.from(atob(pemBody), (char) => char.charCodeAt(0))
+    const binaryDer = Uint8Array.from(atob(pemBody), char => char.charCodeAt(0))
     const cryptoKey = await crypto.subtle.importKey(
       'pkcs8',
       binaryDer,
@@ -269,6 +275,17 @@ export class SmtpClient {
     const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
     const dkimHeader = `DKIM-Signature: ${dkimHeaderPrefix}${signatureBase64}`
     return `${dkimHeader}\r\n${rawHeaderSection}\r\n\r\n${rawBodySection}`
+  }
+
+  /**
+   * Prepare SMTP DATA payload.
+   * @description Applies CRLF normalization and dot-stuffing.
+   * @param messageContent - Raw MIME message content
+   * @returns SMTP-safe DATA payload
+   */
+  private toSmtpDataStream(messageContent: string): string {
+    const normalizedContent = messageContent.replace(/\r?\n/g, '\r\n')
+    return normalizedContent.replace(/(^|\r\n)\./g, '$1..')
   }
 
   /**
