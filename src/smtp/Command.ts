@@ -56,9 +56,10 @@ export class SmtpCommand {
    * Send SMTP command.
    * @description Writes command and waits for server reply.
    * @param command - SMTP command to send
+   * @returns Server response string
    * @throws {Error} When command times out or server returns error
    */
-  async sendCommand(command: string): Promise<void> {
+  async sendCommand(command: string): Promise<string> {
     if (!this.state.conn && !this.state.tlsConn) {
       throw new Error('Not connected')
     }
@@ -69,7 +70,7 @@ export class SmtpCommand {
     } else if (this.state.conn) {
       await this.state.conn.write(data)
     }
-    await this.readResponse()
+    return await this.readResponse()
   }
 
   /**

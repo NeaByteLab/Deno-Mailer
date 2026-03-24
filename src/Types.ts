@@ -88,9 +88,10 @@ export interface EmailSender {
   /**
    * Sends an email message.
    * @param message - The email message to send
+   * @returns Structured SMTP delivery result
    * @throws {Error} When message sending fails
    */
-  send(message: EmailMessage): Promise<void>
+  send(message: EmailMessage): Promise<SmtpSendResult>
 }
 
 /**
@@ -163,6 +164,10 @@ export interface SmtpConnectionConfig {
   secure?: boolean
   /** Optional authentication credentials */
   auth?: SmtpAuthCredential
+  /** Optional DKIM signing configuration */
+  dkim?: SmtpDkimConfig
+  /** Optional SMTP connection pool configuration */
+  pool?: SmtpPoolConfig | boolean
 }
 
 /**
@@ -175,4 +180,48 @@ export interface SmtpConnectionState {
   tlsConn: Deno.TlsConn | null
   /** Connection configuration */
   config: SmtpConnectionConfig
+}
+
+/** SMTP DKIM signing configuration. */
+export interface SmtpDkimConfig {
+  /** Signing domain for DKIM signature */
+  domainName: string
+  /** Key selector prefix from DNS record */
+  keySelector: string
+  /** PEM private key for signing */
+  privateKey: string
+  /** Optional signed header list override */
+  headerFieldNames?: string[]
+}
+
+/** SMTP delivery envelope details. */
+export interface SmtpEnvelope {
+  /** SMTP MAIL FROM sender */
+  from: string
+  /** SMTP RCPT TO recipients */
+  to: string[]
+}
+
+/** SMTP pool behavior configuration. */
+export interface SmtpPoolConfig {
+  /** Maximum pooled SMTP connections */
+  maxConnections?: number
+  /** Maximum messages per connection */
+  maxMessagesPerConnection?: number
+  /** Idle close timeout in milliseconds */
+  idleTimeoutMs?: number
+}
+
+/** SMTP send operation result. */
+export interface SmtpSendResult {
+  /** Accepted SMTP recipients */
+  acceptedRecipients: string[]
+  /** Envelope sender and recipient list */
+  envelope: SmtpEnvelope
+  /** Generated Message-ID header */
+  messageId: string
+  /** Rejected SMTP recipients */
+  rejectedRecipients: string[]
+  /** Final SMTP server response */
+  response: string
 }
