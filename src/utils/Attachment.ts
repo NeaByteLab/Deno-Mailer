@@ -1,11 +1,11 @@
-import type { EmailAttachment, EmbeddedImage } from '@app/Types.ts'
+import type * as Types from '@app/Types.ts'
 
 /**
  * Validates email attachment data.
  * @param attachment - Attachment to validate
  * @throws {Error} When attachment validation fails
  */
-export function isValidAttachment(attachment: EmailAttachment): void {
+export function isValidAttachment(attachment: Types.EmailAttachment): void {
   if (!attachment) {
     throw new Error('Attachment is required')
   }
@@ -43,7 +43,7 @@ export function isValidAttachment(attachment: EmailAttachment): void {
  * @param attachment - Embedded attachment to validate
  * @throws {Error} When embedded attachment validation fails
  */
-export function isValidEmbedded(attachment: EmbeddedImage): void {
+export function isValidEmbedded(attachment: Types.EmbeddedImage): void {
   isValidAttachment(attachment)
   if (!attachment.cid) {
     throw new Error('Embedded attachment Content-ID is required')

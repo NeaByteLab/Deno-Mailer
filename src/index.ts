@@ -1,19 +1,19 @@
-import type { EmailMessage, EmailSender, EmailService, SmtpConnectionConfig } from '@app/Types.ts'
-import { SmtpClient } from '@smtp/index.ts'
-import { isValidConfig } from '@utils/index.ts'
+import type * as Types from '@app/Types.ts'
+import * as SMTP from '@smtp/index.ts'
+import * as Utils from '@utils/index.ts'
 
 /**
  * Main email service for sending messages via SMTP.
  */
-export const mailer: EmailService = {
+export const mailer: Types.EmailService = {
   /**
    * Creates an email transporter with SMTP configuration.
    * @param config - SMTP connection configuration
    * @returns Email sender instance
    * @throws {Error} When configuration is invalid
    */
-  transporter(config: SmtpConnectionConfig): EmailSender {
-    isValidConfig(config)
+  transporter(config: Types.SmtpConnectionConfig): Types.EmailSender {
+    Utils.isValidConfig(config)
     return createTransporter(config)
   }
 }
@@ -23,10 +23,10 @@ export const mailer: EmailService = {
  * @param config - SMTP connection configuration
  * @returns Email sender implementation
  */
-function createTransporter(config: SmtpConnectionConfig): EmailSender {
+function createTransporter(config: Types.SmtpConnectionConfig): Types.EmailSender {
   return {
-    async send(message: EmailMessage): Promise<void> {
-      const client = new SmtpClient(config)
+    async send(message: Types.EmailMessage): Promise<void> {
+      const client = new SMTP.SmtpClient(config)
       try {
         await client.connect()
         await client.sendMessage(message)
@@ -47,4 +47,4 @@ export default mailer
  * Re-exports all type definitions.
  * @description Provides access to all TypeScript interfaces and types.
  */
-export * from '@app/Types.ts'
+export type * from '@app/Types.ts'

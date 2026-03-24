@@ -1,11 +1,11 @@
-import type { SmtpAuthCredential, SmtpConnectionConfig } from '@app/Types.ts'
+import type * as Types from '@app/Types.ts'
 
 /**
  * Validates SMTP connection configuration.
  * @param config - SMTP configuration to validate
  * @throws {Error} When configuration validation fails
  */
-export function isValidConfig(config: SmtpConnectionConfig): void {
+export function isValidConfig(config: Types.SmtpConnectionConfig): void {
   if (!config) {
     throw new Error('Configuration is required')
   }
@@ -20,7 +20,7 @@ export function isValidConfig(config: SmtpConnectionConfig): void {
  * @param auth - Authentication credentials to validate
  * @throws {Error} When authentication validation fails
  */
-function validateAuth(auth: SmtpAuthCredential | undefined): void {
+function validateAuth(auth: Types.SmtpAuthCredential | undefined): void {
   if (auth) {
     if (!auth.user || auth.user.length === 0) {
       throw new Error('SMTP auth user is required')
