@@ -44,6 +44,18 @@ This document explains the full **Deno Mailer** usage flow, from SMTP configurat
 deno add jsr:@neabyte/deno-mailer
 ```
 
+Import the mailer from the same specifier your project uses for JSR (after `deno add`, the import map entry is usually `@neabyte/deno-mailer`):
+
+```ts
+import { mailer } from 'jsr:@neabyte/deno-mailer'
+// or: import { mailer } from '@neabyte/deno-mailer'
+```
+
+Types ship with the package. Use `import type { EmailMessage, SmtpConnectionConfig, SmtpSendResult } from 'jsr:@neabyte/deno-mailer'` when you only need types.
+
+> [!TIP]
+> After `deno add`, prefer the import map key (often `@neabyte/deno-mailer`) so paths stay short and consistent.
+
 ## Configuration
 
 ### SMTP Settings
@@ -87,6 +99,9 @@ auth: {
 // For local SMTP without auth, omit `auth`.
 ```
 
+> [!IMPORTANT]
+> When you pass `auth`, you must set `type` to `'password'` or `'oauth2'` and include the matching fields (`pass` or `accessToken`). Implicit auth objects are not supported.
+
 ### DKIM Signing
 
 ```ts
@@ -109,6 +124,9 @@ const transporter = mailer.transporter({
 ```
 
 Optional `dkim.headerFieldNames` lists which message headers are included in the DKIM `h=` tag (use lowercase names). If you omit it, the default set is `from`, `to`, `subject`, `date`, `message-id`, `mime-version`, `content-type`.
+
+> [!WARNING]
+> If you set `dkim`, validation requires non-empty `domainName`, `keySelector`, and `privateKey`. An empty `privateKey` (for example from a missing env var) fails at transporter creation.
 
 ### Pooling and Reuse
 
@@ -133,12 +151,17 @@ const transporter = mailer.transporter({
 
 ### TLS and SSL Options
 
+When `secure` is omitted, it behaves like `false` (plain TCP first, then optional `STARTTLS`).
+
 With `secure: false`, the client opens a plain TCP connection, sends `EHLO`, then:
 
 - If the server advertises `STARTTLS`, the client upgrades to TLS and sends `EHLO` again (this applies to any port where the server offers `STARTTLS`, not only 587).
 - On **port 587**, the server **must** advertise `STARTTLS`. If it does not, the client throws an error.
 
-With `secure: true`, the connection uses TLS from the first byte (typical for port 465).
+With `secure: true`, the connection uses TLS from the first byte (typical for port 465). Use this for implicit TLS, not for port 587 submission with `STARTTLS`.
+
+> [!WARNING]
+> If **587** fails with a STARTTLS error, confirm the server advertises `STARTTLS` after `EHLO`. Some setups expect **port 465** with `secure: true` (implicit TLS) instead.
 
 ```ts
 // Port 587: plain connect, then mandatory STARTTLS upgrade after EHLO.
@@ -244,6 +267,9 @@ The formatter builds **one** MIME structure per message. It does **not** combine
 
 If you set more than one of `embeddedImages`, `calendarEvent`, and `attachments`, the earlier branch wins and the others are ignored for structure (for example calendar plus attachments in one send is not supported as one merged layout).
 
+> [!IMPORTANT]
+> Only **one** of these shapes applies per message: embedded images **or** calendar **or** file attachments for the top-level MIME choice. You cannot merge them into a single custom multipart tree in one send.
+
 ### File Attachments
 
 ```ts
@@ -264,6 +290,8 @@ await transporter.send({
 })
 ```
 
+`filename` cannot contain `"`, CR, or LF (they would break the MIME `filename="..."` parameter). If you set `contentType`, it cannot contain CR or LF. Embedded image `cid` values cannot contain line breaks inside the angle brackets.
+
 ### Attachment Encoding Options
 
 Transfer encoding behavior:
@@ -271,6 +299,9 @@ Transfer encoding behavior:
 - **`base64`:** Pass **raw** content (`string` as UTF-8 text, or `Uint8Array` as bytes). The library encodes to Base64. Do **not** pass a string that is already Base64 unless you want it encoded again (wrong for binary files).
 - **`7bit`:** Content must be **ASCII only** (bytes 0–127). Non-ASCII input throws.
 - **`quoted-printable`:** Bytes are escaped per quoted-printable rules. The encoder does **not** fold lines to ~76 characters, which some strict MTAs expect for long lines.
+
+> [!NOTE]
+> For `base64`, pass **raw** file bytes or text. Passing an already Base64-encoded string will be encoded again and corrupt binary payloads.
 
 ```ts
 // Use base64, 7bit, or quoted-printable transfer encoding.
@@ -449,6 +480,9 @@ Rules:
 - Names and values must **not** contain CR or LF.
 - These names are **reserved** and cannot be set via `headers` (the library owns them): `bcc`, `cc`, `content-disposition`, `content-id`, `content-transfer-encoding`, `content-type`, `date`, `from`, `message-id`, `mime-version`, `reply-to`, `subject`, `to`.
 
+> [!WARNING]
+> Setting a reserved header name (case-insensitive) throws. Use the top-level `to`, `cc`, `bcc`, `replyTo`, `subject`, and body fields instead of duplicating them in `headers`.
+
 ## API Reference
 
 ### Main API
@@ -460,23 +494,24 @@ Rules:
 
 ### Configuration Options
 
-| Option                          | Type           | Required | Description                  | Example                            |
-| ------------------------------- | -------------- | -------- | ---------------------------- | ---------------------------------- |
-| `host`                          | string         | yes      | SMTP server hostname         | `'smtp.gmail.com'`                 |
-| `port`                          | number         | yes      | SMTP server port             | `587`, `465`, `25`                 |
-| `secure`                        | boolean        | no       | Use TLS connection           | `true` (465), `false` (587)        |
-| `auth.type`                     | string         | no       | Auth mode                    | `'password'`, `'oauth2'`           |
-| `auth.user`                     | string         | no       | SMTP username                | `'user@example.com'`               |
-| `auth.pass`                     | string         | no       | SMTP password                | `'your-password'`                  |
-| `auth.accessToken`              | string         | no       | OAuth2 bearer token          | `'ya29.a0...'`                     |
-| `pool`                          | boolean/object | no       | Enable SMTP client reuse     | `true`, `{...}`                    |
-| `pool.maxConnections`           | number         | no       | Maximum pooled clients       | `2`                                |
-| `pool.maxMessagesPerConnection` | number         | no       | Recycle client after N sends | `100`                              |
-| `pool.idleTimeoutMs`            | number         | no       | Idle disconnect timeout ms   | `60000`                            |
-| `dkim.domainName`               | string         | no       | DKIM signing domain          | `'example.com'`                    |
-| `dkim.keySelector`              | string         | no       | DKIM DNS selector            | `'mail'`                           |
-| `dkim.privateKey`               | string         | no       | PEM private signing key      | `'-----BEGIN PRIVATE KEY-----...'` |
-| `dkim.headerFieldNames`         | string[]       | no       | Headers in DKIM `h=` list    | `['from','to','subject',...]`      |
+| Option                          | Type           | Required                | Description                   | Example                               |
+| ------------------------------- | -------------- | ----------------------- | ----------------------------- | ------------------------------------- |
+| `host`                          | string         | yes                     | SMTP server hostname          | `'smtp.gmail.com'`                    |
+| `port`                          | number         | yes                     | SMTP server port              | `587`, `465`, `25`                    |
+| `secure`                        | boolean        | no                      | Implicit TLS from connect     | `true` (465), `false` or omit (587)   |
+| `auth`                          | object         | no                      | Omit for servers without AUTH | See [Authentication](#authentication) |
+| `auth.type`                     | string         | when `auth` set         | Password or OAuth2            | `'password'`, `'oauth2'`              |
+| `auth.user`                     | string         | when `auth` set         | SMTP username                 | `'user@example.com'`                  |
+| `auth.pass`                     | string         | when `type: 'password'` | SMTP password                 | `'your-password'`                     |
+| `auth.accessToken`              | string         | when `type: 'oauth2'`   | OAuth2 bearer token           | `'ya29.a0...'`                        |
+| `pool`                          | boolean/object | no                      | Enable SMTP client reuse      | `true`, `{...}`                       |
+| `pool.maxConnections`           | number         | no                      | Maximum pooled clients        | `2`                                   |
+| `pool.maxMessagesPerConnection` | number         | no                      | Recycle client after N sends  | `100`                                 |
+| `pool.idleTimeoutMs`            | number         | no                      | Idle disconnect timeout ms    | `60000`                               |
+| `dkim.domainName`               | string         | no                      | DKIM signing domain           | `'example.com'`                       |
+| `dkim.keySelector`              | string         | no                      | DKIM DNS selector             | `'mail'`                              |
+| `dkim.privateKey`               | string         | no                      | PEM private signing key       | `'-----BEGIN PRIVATE KEY-----...'`    |
+| `dkim.headerFieldNames`         | string[]       | no                      | Headers in DKIM `h=` list     | `['from','to','subject',...]`         |
 
 ### Message Properties
 
@@ -497,15 +532,22 @@ Rules:
 
 Attachment and embedded image `encoding` supports `base64` (library encodes raw content), `7bit` (ASCII only), and `quoted-printable` (no automatic line folding). Embedded image `disposition` supports `inline` and `attachment`.
 
+For SMTP envelope validation, mailbox strings used as bare emails (after parsing) cannot contain CR or LF.
+
+The `subject` string cannot contain CR or LF. For `calendarEvent`, values in `uid`, `summary`, `startTime`, `endTime`, `description`, `location`, `organizer`, and each `attendees` entry cannot contain CR or LF.
+
 ### Send Result
 
 `transporter.send()` resolves a structured result:
 
-- `messageId`: Message-ID header value
-- `envelope`: SMTP envelope sender and recipients
-- `acceptedRecipients`: recipients accepted by server
-- `rejectedRecipients`: recipients rejected by server
-- `response`: final SMTP DATA completion response
+- `messageId`: value from the generated `Message-ID` header (empty string if parsing ever fails)
+- `envelope`: `from` is SMTP `MAIL FROM`, `to` lists every address used in `RCPT TO` (includes `to`, `cc`, and `bcc` recipients)
+- `acceptedRecipients`: addresses accepted by the server for `RCPT TO`
+- `rejectedRecipients`: addresses rejected for `RCPT TO`
+- `response`: final SMTP response after the terminating `DATA` dot
+
+> [!NOTE]
+> `envelope.to` lists every address sent in `RCPT TO`, including **BCC** recipients. Do not treat that list as a public “visible To” header if you must hide BCC addresses in your own UI or logs.
 
 ### Error Handling
 
