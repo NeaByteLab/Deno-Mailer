@@ -36,6 +36,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Breaking
 
+- Renamed `@utils` exports from `isValid*` style to `validate*`:
+  `validateEmailAttachment`, `validateEmbeddedImage`, `validateSmtpConfig`,
+  `validateContentId`, `validateMailboxAddress`
+- Renamed SMTP DATA preparation helper `toSmtpSafeDataStream` to `encodeSmtpData`
+- Renamed `SmtpAddress.formatAddressForHeader` to `SmtpAddress.formatForHeader`
 - Removed implicit auth shape without `auth.type`
 - Replaced previous auth credential model with explicit variants:
   `type: 'password'` with `user` and `pass`,
