@@ -71,60 +71,16 @@ Deno.test('send calendar invite email with Ethereal SMTP account', async () => {
   })
 })
 
-Deno.test('send email with Ethereal SMTP account', async () => {
-  if (!hasEtherealCredentials) {
+Deno.test('send email over oauth2 configuration', async () => {
+  if (!etherealUser || !oauth2AccessToken || !runOAuth2SmtpTest) {
     return
   }
-  const sender = App.mailer.transporter(smtpConfig)
+  const sender = App.mailer.transporter(oauth2SmtpConfig)
   await sender.send({
     from: `Mailer Integration <${etherealUser}>`,
     to: `Mailer Integration <${etherealUser}>`,
-    subject: 'Deno-Mailer integration test',
-    text: 'This message is sent by Deno test integration.'
-  })
-})
-
-Deno.test('send html and attachment email with Ethereal SMTP account', async () => {
-  if (!hasEtherealCredentials) {
-    return
-  }
-  const sender = App.mailer.transporter(smtpConfig)
-  await sender.send({
-    from: `Mailer Integration <${etherealUser}>`,
-    to: `Mailer Integration <${etherealUser}>`,
-    subject: 'Deno-Mailer attachment integration test',
-    text: 'Attachment text version',
-    html: '<p><b>Attachment</b> html version</p>',
-    attachments: [
-      {
-        filename: 'integration.txt',
-        content: new Uint8Array([72, 101, 108, 108, 111]),
-        contentType: 'text/plain',
-        encoding: 'base64'
-      }
-    ]
-  })
-})
-
-Deno.test('send embedded image email with Ethereal SMTP account', async () => {
-  if (!hasEtherealCredentials) {
-    return
-  }
-  const sender = App.mailer.transporter(smtpConfig)
-  await sender.send({
-    from: `Mailer Integration <${etherealUser}>`,
-    to: `Mailer Integration <${etherealUser}>`,
-    subject: 'Deno-Mailer embedded image integration test',
-    html: '<p>Inline image <img src="cid:integration-image"></p>',
-    embeddedImages: [
-      {
-        filename: 'inline.txt',
-        content: new Uint8Array([73, 109, 97, 103, 101]),
-        contentType: 'text/plain',
-        cid: '<integration-image>',
-        encoding: 'base64'
-      }
-    ]
+    subject: 'Deno-Mailer oauth2 integration test',
+    text: 'OAuth2 send test'
   })
 })
 
@@ -138,6 +94,19 @@ Deno.test('send email over secure TLS configuration', async () => {
     to: `Mailer Integration <${etherealUser}>`,
     subject: 'Deno-Mailer secure tls integration test',
     text: 'Secure TLS send test'
+  })
+})
+
+Deno.test('send email with Ethereal SMTP account', async () => {
+  if (!hasEtherealCredentials) {
+    return
+  }
+  const sender = App.mailer.transporter(smtpConfig)
+  await sender.send({
+    from: `Mailer Integration <${etherealUser}>`,
+    to: `Mailer Integration <${etherealUser}>`,
+    subject: 'Deno-Mailer integration test',
+    text: 'This message is sent by Deno test integration.'
   })
 })
 
@@ -201,15 +170,46 @@ Deno.test('send email with string attachment content and 7bit encoding', async (
   })
 })
 
-Deno.test('send email over oauth2 configuration', async () => {
-  if (!etherealUser || !oauth2AccessToken || !runOAuth2SmtpTest) {
+Deno.test('send embedded image email with Ethereal SMTP account', async () => {
+  if (!hasEtherealCredentials) {
     return
   }
-  const sender = App.mailer.transporter(oauth2SmtpConfig)
+  const sender = App.mailer.transporter(smtpConfig)
   await sender.send({
     from: `Mailer Integration <${etherealUser}>`,
     to: `Mailer Integration <${etherealUser}>`,
-    subject: 'Deno-Mailer oauth2 integration test',
-    text: 'OAuth2 send test'
+    subject: 'Deno-Mailer embedded image integration test',
+    html: '<p>Inline image <img src="cid:integration-image"></p>',
+    embeddedImages: [
+      {
+        filename: 'inline.txt',
+        content: new Uint8Array([73, 109, 97, 103, 101]),
+        contentType: 'text/plain',
+        cid: '<integration-image>',
+        encoding: 'base64'
+      }
+    ]
+  })
+})
+
+Deno.test('send html and attachment email with Ethereal SMTP account', async () => {
+  if (!hasEtherealCredentials) {
+    return
+  }
+  const sender = App.mailer.transporter(smtpConfig)
+  await sender.send({
+    from: `Mailer Integration <${etherealUser}>`,
+    to: `Mailer Integration <${etherealUser}>`,
+    subject: 'Deno-Mailer attachment integration test',
+    text: 'Attachment text version',
+    html: '<p><b>Attachment</b> html version</p>',
+    attachments: [
+      {
+        filename: 'integration.txt',
+        content: new Uint8Array([72, 101, 108, 108, 111]),
+        contentType: 'text/plain',
+        encoding: 'base64'
+      }
+    ]
   })
 })
