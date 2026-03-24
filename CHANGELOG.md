@@ -13,6 +13,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Added optional OAuth2 live integration scenario in `tests/Integration.test.ts`
 - Added strict auth config validation test coverage in `tests/utils/Config.test.ts`
 - Added custom header security unit tests in `tests/smtp/Message.test.ts`
+- Added SMTP config options for DKIM signing and connection pooling
+- Added structured SMTP send result type with envelope and recipient status fields
 
 ### Changed
 
@@ -21,6 +23,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Updated SMTP config validation to enforce explicit auth discriminator
 - Updated auth and config types to discriminated union structure
 - Updated SMTP message header handling with strict validation in `src/smtp/Message.ts`
+- Updated transporter flow to support pooled SMTP client reuse
+- Updated SMTP client send flow to return structured delivery metadata
 
 ### Breaking
 
@@ -30,6 +34,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   `type: 'oauth2'` with `user` and `accessToken`
 - Disallowed overriding reserved SMTP headers via `message.headers`
 - Rejected custom headers containing invalid names or CRLF line breaks
+- Changed `EmailSender.send()` return type from `Promise<void>` to `Promise<SmtpSendResult>`
 
 ## [0.2.0] - 2026-03-24
 
