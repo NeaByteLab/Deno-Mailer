@@ -17,7 +17,9 @@ This document explains the full **Deno Mailer** usage flow, from SMTP configurat
   - [Advanced Recipient Formats](#advanced-recipient-formats)
 - [Advanced Features](#advanced-features)
   - [File Attachments](#file-attachments)
+  - [Attachment Encoding Options](#attachment-encoding-options)
   - [Embedded Images](#embedded-images)
+  - [Embedded Image Disposition](#embedded-image-disposition)
   - [Calendar Invitations](#calendar-invitations)
   - [Custom Headers](#custom-headers)
 - [API Reference](#api-reference)
@@ -182,6 +184,38 @@ await transporter.send({
 })
 ```
 
+### Attachment Encoding Options
+
+```ts
+// Use base64, 7bit, or quoted-printable transfer encoding.
+await transporter.send({
+  from: 'sender@example.com',
+  to: 'recipient@example.com',
+  subject: 'Attachment Encoding Options',
+  text: 'Different transfer encodings are supported',
+  attachments: [
+    {
+      filename: 'base64.txt',
+      content: fileBase64Content,
+      contentType: 'text/plain',
+      encoding: 'base64'
+    },
+    {
+      filename: 'plain.txt',
+      content: 'Plain text body',
+      contentType: 'text/plain',
+      encoding: '7bit'
+    },
+    {
+      filename: 'qp.txt',
+      content: 'Quoted printable body',
+      contentType: 'text/plain',
+      encoding: 'quoted-printable'
+    }
+  ]
+})
+```
+
 ```ts
 // Send multiple attachments with mixed content types.
 await transporter.send({
@@ -228,6 +262,36 @@ await transporter.send({
       contentType: 'image/png',
       cid: '<logo@example.com>',
       disposition: 'inline'
+    }
+  ]
+})
+```
+
+### Embedded Image Disposition
+
+```ts
+// Set inline or attachment disposition for embedded images.
+await transporter.send({
+  from: 'sender@example.com',
+  to: 'recipient@example.com',
+  subject: 'Embedded Image Disposition',
+  html: '<h1>Hello!</h1><img src="cid:logo">',
+  embeddedImages: [
+    {
+      filename: 'logo.png',
+      content: imageContent,
+      contentType: 'image/png',
+      cid: '<logo@example.com>',
+      disposition: 'inline',
+      encoding: 'base64'
+    },
+    {
+      filename: 'badge.png',
+      content: badgeContent,
+      contentType: 'image/png',
+      cid: '<badge@example.com>',
+      disposition: 'attachment',
+      encoding: 'base64'
     }
   ]
 })
@@ -328,6 +392,9 @@ await transporter.send({
 | `embeddedImages` | array         | no       | Embedded images              |
 | `calendarEvent`  | object        | no       | Calendar invitation          |
 | `headers`        | object        | no       | Custom email headers         |
+
+Attachment and embedded image encoding supports `base64`, `7bit`, and `quoted-printable`.
+Embedded image disposition supports `inline` and `attachment`.
 
 ### Error Handling
 

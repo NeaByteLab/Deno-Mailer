@@ -4,7 +4,7 @@
 
 Lightweight Deno SMTP mailer with flexible configuration and formatting.
 
-[![Deno](https://img.shields.io/badge/deno-%3E%3D2.x-000000?logo=deno&logoColor=white)](https://deno.com) [![JSR](https://jsr.io/badges/@neabyte/deno-mailer)](https://jsr.io/@neabyte/deno-mailer) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Deno](https://img.shields.io/badge/deno-%3E%3D2.x-000000?logo=deno&logoColor=white)](https://deno.com) [![JSR](https://jsr.io/badges/@neabyte/deno-mailer)](https://jsr.io/@neabyte/deno-mailer) [![CI](https://github.com/NeaByteLab/Deno-Mailer/actions/workflows/ci.yml/badge.svg)](https://github.com/NeaByteLab/Deno-Mailer/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 </div>
 
@@ -14,6 +14,7 @@ Lightweight Deno SMTP mailer with flexible configuration and formatting.
 - **Flexible recipients**: supports string, object, and mixed recipient formats
 - **Rich message content**: plain text, HTML, mixed body, and custom headers
 - **Attachments and inline media**: supports file attachments and embedded images
+- **Transfer control options**: supports base64, 7bit, and quoted-printable encodings
 - **Calendar invitations**: generates ICS calendar payload for meeting invites
 - **Zero external runtime deps**: built with Deno native capabilities
 
@@ -58,9 +59,34 @@ await transporter.send({
 deno task check
 ```
 
+## Test
+
+```bash
+# Copy env template for SMTP integration tests.
+cp .env.example .env
+```
+
+```bash
+# Set ETHEREAL_USER and ETHEREAL_PASS in .env, then run test suite.
+deno task test
+```
+
+```bash
+# Alternative: export credentials in shell, then run test suite.
+export ETHEREAL_USER=your-ethereal-username
+export ETHEREAL_PASS=your-ethereal-password
+
+# Optional: run secure TLS (port 465) integration test too.
+export RUN_SECURE_SMTP_TEST=true
+
+# Run full unit and integration tests.
+deno task test
+```
+
 ## Reference
 
 - [USAGE.md](USAGE.md): complete API usage, configuration, and troubleshooting
+- [CHANGELOG.md](CHANGELOG.md): release history and notable changes
 
 ## Contributing
 
