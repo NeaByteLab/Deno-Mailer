@@ -1,36 +1,39 @@
 /**
- * Generates unique Content-ID for embedded attachments.
- * @description Builds random bytes timestamp and domain mailbox id.
- * @param domain - Domain name for Content-ID (defaults to 'deno-mailer.local')
- * @returns Generated Content-ID string
+ * Generate unique MIME Content-ID token.
+ * @description Combines random bytes, timestamp, and mailbox domain.
+ * @param mailboxDomain - Host part after @ inside angle brackets
+ * @returns Bracketed Content-ID suitable for MIME headers
  */
-export function generateContentId(domain = 'deno-mailer.local'): string {
-  const randomBytes = new Uint8Array(16)
-  crypto.getRandomValues(randomBytes)
-  const hexString = Array.from(randomBytes)
-    .map((byte) => byte.toString(16).padStart(2, '0'))
+export function generateContentId(mailboxDomain = 'deno-mailer.local'): string {
+  const randomEntropyBytes = new Uint8Array(16)
+  crypto.getRandomValues(randomEntropyBytes)
+  const randomHexFingerprint = Array.from(randomEntropyBytes)
+    .map((byteValue) => byteValue.toString(16).padStart(2, '0'))
     .join('')
-  const timestamp = Date.now().toString(36)
-  return `<${timestamp}-${hexString}@${domain}>`
+  const timeBase36Prefix = Date.now().toString(36)
+  return `<${timeBase36Prefix}-${randomHexFingerprint}@${mailboxDomain}>`
 }
 
 /**
- * Validates Content-ID format.
- * @description Checks angle brackets at symbol and length bounds.
- * @param cid - Content-ID string to validate
- * @throws {Error} When Content-ID validation fails
+ * Validate Content-ID header value shape.
+ * @description Requires brackets, @, length bounds, no line breaks.
+ * @param rawContentId - Candidate Content-ID string from caller
+ * @throws {Error} When format or length rules are violated
  */
-export function isValidContentId(cid: string): void {
-  if (!cid) {
+export function validateContentId(rawContentId: string): void {
+  if (!rawContentId) {
     throw new Error('Content-ID is required')
   }
-  if (!cid.startsWith('<') || !cid.endsWith('>')) {
+  if (!rawContentId.startsWith('<') || !rawContentId.endsWith('>')) {
     throw new Error('Content-ID must be enclosed in angle brackets')
   }
-  if (!cid.includes('@')) {
+  if (rawContentId.includes('\r') || rawContentId.includes('\n')) {
+    throw new Error('Content-ID cannot contain line break characters')
+  }
+  if (!rawContentId.includes('@')) {
     throw new Error('Content-ID must contain @ symbol')
   }
-  if (cid.length < 10 || cid.length > 100) {
+  if (rawContentId.length < 10 || rawContentId.length > 100) {
     throw new Error('Content-ID must be between 10 and 100 characters')
   }
 }

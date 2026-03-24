@@ -15,7 +15,7 @@ export const mailer: Types.EmailService = {
    * @throws {Error} When configuration is invalid
    */
   transporter(config: Types.SmtpConnectionConfig): Types.EmailSender {
-    Utils.isValidConfig(config)
+    Utils.validateSmtpConfig(config)
     return createTransporter(config)
   }
 }

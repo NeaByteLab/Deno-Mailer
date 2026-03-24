@@ -1,50 +1,8 @@
 import { assertThrows } from '@std/assert'
 import * as Utils from '@utils/index.ts'
 
-Deno.test('isValidConfig accepts valid SMTP config', () => {
-  Utils.isValidConfig({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false,
-    auth: {
-      type: 'password',
-      user: 'vernie18@ethereal.email',
-      pass: 'E63awnsa2hbZT9s8s4'
-    }
-  })
-})
-
-Deno.test('isValidConfig rejects empty auth user', () => {
-  assertThrows(
-    () =>
-      Utils.isValidConfig({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        auth: {
-          type: 'password',
-          user: '',
-          pass: 'secret'
-        }
-      }),
-    Error,
-    'auth user is required'
-  )
-})
-
-Deno.test('isValidConfig rejects invalid port range', () => {
-  assertThrows(
-    () =>
-      Utils.isValidConfig({
-        host: 'smtp.ethereal.email',
-        port: 70000
-      }),
-    Error,
-    'between 1 and 65535'
-  )
-})
-
-Deno.test('isValidConfig accepts oauth2 SMTP config', () => {
-  Utils.isValidConfig({
+Deno.test('validateSmtpConfig accepts oauth2 SMTP config', () => {
+  Utils.validateSmtpConfig({
     host: 'smtp.ethereal.email',
     port: 587,
     secure: false,
@@ -56,24 +14,16 @@ Deno.test('isValidConfig accepts oauth2 SMTP config', () => {
   })
 })
 
-Deno.test('isValidConfig rejects auth without type discriminator', () => {
-  assertThrows(
-    () =>
-      Utils.isValidConfig({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        auth: {
-          user: 'vernie18@ethereal.email',
-          pass: 'secret'
-        } as never
-      }),
-    Error,
-    'auth type must be password or oauth2'
-  )
+Deno.test('validateSmtpConfig accepts SMTP boolean pool option', () => {
+  Utils.validateSmtpConfig({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    pool: true
+  })
 })
 
-Deno.test('isValidConfig accepts SMTP config with dkim and pool settings', () => {
-  Utils.isValidConfig({
+Deno.test('validateSmtpConfig accepts SMTP config with dkim and pool settings', () => {
+  Utils.validateSmtpConfig({
     host: 'smtp.ethereal.email',
     port: 587,
     secure: false,
@@ -90,10 +40,98 @@ Deno.test('isValidConfig accepts SMTP config with dkim and pool settings', () =>
   })
 })
 
-Deno.test('isValidConfig rejects invalid SMTP pool maxConnections', () => {
+Deno.test('validateSmtpConfig accepts valid SMTP config', () => {
+  Utils.validateSmtpConfig({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      type: 'password',
+      user: 'vernie18@ethereal.email',
+      pass: 'E63awnsa2hbZT9s8s4'
+    }
+  })
+})
+
+Deno.test('validateSmtpConfig rejects auth without type discriminator', () => {
   assertThrows(
     () =>
-      Utils.isValidConfig({
+      Utils.validateSmtpConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        auth: {
+          user: 'vernie18@ethereal.email',
+          pass: 'secret'
+        } as never
+      }),
+    Error,
+    'auth type must be password or oauth2'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects empty auth user', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        auth: {
+          type: 'password',
+          user: '',
+          pass: 'secret'
+        }
+      }),
+    Error,
+    'auth user is required'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects invalid port range', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.ethereal.email',
+        port: 70000
+      }),
+    Error,
+    'between 1 and 65535'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects invalid SMTP max messages per connection', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        pool: {
+          maxMessagesPerConnection: 0
+        }
+      }),
+    Error,
+    'maxMessagesPerConnection must be integer >= 1'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects invalid SMTP pool idle timeout', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        pool: {
+          idleTimeoutMs: -1
+        }
+      }),
+    Error,
+    'idleTimeoutMs must be integer >= 0'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects invalid SMTP pool maxConnections', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
         host: 'smtp.ethereal.email',
         port: 587,
         pool: {
@@ -105,10 +143,10 @@ Deno.test('isValidConfig rejects invalid SMTP pool maxConnections', () => {
   )
 })
 
-Deno.test('isValidConfig rejects missing SMTP dkim private key', () => {
+Deno.test('validateSmtpConfig rejects missing SMTP dkim private key', () => {
   assertThrows(
     () =>
-      Utils.isValidConfig({
+      Utils.validateSmtpConfig({
         host: 'smtp.ethereal.email',
         port: 587,
         dkim: {
@@ -122,40 +160,125 @@ Deno.test('isValidConfig rejects missing SMTP dkim private key', () => {
   )
 })
 
-Deno.test('isValidConfig accepts SMTP boolean pool option', () => {
-  Utils.isValidConfig({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    pool: true
-  })
-})
-
-Deno.test('isValidConfig rejects invalid SMTP pool idle timeout', () => {
+Deno.test('validateSmtpConfig rejects non-boolean secure flag', () => {
   assertThrows(
     () =>
-      Utils.isValidConfig({
-        host: 'smtp.ethereal.email',
+      Utils.validateSmtpConfig({
+        host: 'smtp.example.com',
         port: 587,
-        pool: {
-          idleTimeoutMs: -1
-        }
+        secure: 'false' as never
       }),
     Error,
-    'idleTimeoutMs must be integer >= 0'
+    'secure option must be a boolean'
   )
 })
 
-Deno.test('isValidConfig rejects invalid SMTP max messages per connection', () => {
+Deno.test('validateSmtpConfig rejects non-integer pool maxConnections', () => {
   assertThrows(
     () =>
-      Utils.isValidConfig({
-        host: 'smtp.ethereal.email',
+      Utils.validateSmtpConfig({
+        host: 'smtp.example.com',
         port: 587,
         pool: {
-          maxMessagesPerConnection: 0
+          maxConnections: 2.5
         }
       }),
     Error,
-    'maxMessagesPerConnection must be integer >= 1'
+    'maxConnections must be integer >= 1'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects non-integer SMTP port', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.example.com',
+        port: 587.5
+      }),
+    Error,
+    'must be an integer'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects null configuration object', () => {
+  assertThrows(() => Utils.validateSmtpConfig(null as never), Error, 'Configuration is required')
+})
+
+Deno.test('validateSmtpConfig rejects oauth2 access token longer than 8192 characters', () => {
+  const longToken = `${'t'.repeat(8193)}`
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.example.com',
+        port: 587,
+        auth: {
+          type: 'oauth2',
+          user: 'user@example.com',
+          accessToken: longToken
+        }
+      }),
+    Error,
+    'access token must be less than 8192 characters'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects password longer than 253 characters', () => {
+  const longPass = `${'p'.repeat(254)}`
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.example.com',
+        port: 587,
+        auth: {
+          type: 'password',
+          user: 'user@example.com',
+          pass: longPass
+        }
+      }),
+    Error,
+    'password must be less than 253 characters'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects SMTP auth user longer than 253 characters', () => {
+  const longUser = `${'u'.repeat(254)}@example.com`
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.example.com',
+        port: 587,
+        auth: {
+          type: 'password',
+          user: longUser,
+          pass: 'secret'
+        }
+      }),
+    Error,
+    'auth user must be less than 253 characters'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects SMTP host longer than 253 characters', () => {
+  const longHost = `${'h'.repeat(254)}.com`
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: longHost,
+        port: 587
+      }),
+    Error,
+    '253 characters or less'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects SMTP host that is only whitespace', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: '   ',
+        port: 587
+      }),
+    Error,
+    'host cannot be empty'
   )
 })

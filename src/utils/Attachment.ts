@@ -1,62 +1,82 @@
 import type * as Types from '@app/Types.ts'
 
 /**
- * Validates email attachment data.
- * @description Checks filename content encoding fields and types.
- * @param attachment - Attachment to validate
- * @throws {Error} When attachment validation fails
+ * Validate email attachment fields.
+ * @description Checks filename, MIME type, encoding, and content.
+ * @param emailAttachment - File part to validate before MIME build
+ * @throws {Error} When required fields or encoding rules fail
  */
-export function isValidAttachment(attachment: Types.EmailAttachment): void {
-  if (!attachment) {
+export function validateEmailAttachment(emailAttachment: Types.EmailAttachment): void {
+  if (!emailAttachment) {
     throw new Error('Attachment is required')
   }
-  if (!attachment.filename) {
+  if (!emailAttachment.filename) {
     throw new Error('Attachment filename is required')
   }
-  if (typeof attachment.filename !== 'string') {
+  if (typeof emailAttachment.filename !== 'string') {
     throw new Error('Attachment filename must be a string')
   }
-  if (attachment.filename.trim().length === 0) {
+  if (emailAttachment.filename.trim().length === 0) {
     throw new Error('Attachment filename cannot be empty')
   }
-  if (attachment.filename.length > 255) {
+  if (emailAttachment.filename.length > 255) {
     throw new Error('Attachment filename must be less than 255 characters')
   }
-  if (!attachment.content) {
+  if (
+    emailAttachment.filename.includes('"') ||
+    emailAttachment.filename.includes('\r') ||
+    emailAttachment.filename.includes('\n')
+  ) {
+    throw new Error('Attachment filename cannot contain quotes or line breaks')
+  }
+  if (!emailAttachment.content) {
     throw new Error('Attachment content is required')
   }
-  if (typeof attachment.content !== 'string' && !(attachment.content instanceof Uint8Array)) {
+  if (
+    typeof emailAttachment.content !== 'string' &&
+    !(emailAttachment.content instanceof Uint8Array)
+  ) {
     throw new Error('Attachment content must be a string or Uint8Array')
   }
-  if (attachment.contentType && typeof attachment.contentType !== 'string') {
+  if (emailAttachment.contentType && typeof emailAttachment.contentType !== 'string') {
     throw new Error('Attachment content type must be a string')
   }
   if (
-    attachment.encoding &&
-    !['base64', '7bit', 'quoted-printable'].includes(attachment.encoding)
+    emailAttachment.contentType &&
+    (emailAttachment.contentType.includes('\r') || emailAttachment.contentType.includes('\n'))
+  ) {
+    throw new Error('Attachment content type cannot contain line breaks')
+  }
+  if (
+    emailAttachment.encoding &&
+    !['base64', '7bit', 'quoted-printable'].includes(emailAttachment.encoding)
   ) {
     throw new Error('Attachment encoding must be base64, 7bit, or quoted-printable')
   }
 }
 
 /**
- * Validates embedded image attachment data.
- * @description Reuses attachment checks and validates CID format.
- * @param attachment - Embedded attachment to validate
- * @throws {Error} When embedded attachment validation fails
+ * Validate embedded image attachment fields.
+ * @description Runs attachment checks plus Content-ID and disposition.
+ * @param embeddedImage - Inline image part with cid and optional disposition
+ * @throws {Error} When attachment, cid, or disposition rules fail
  */
-export function isValidEmbedded(attachment: Types.EmbeddedImage): void {
-  isValidAttachment(attachment)
-  if (!attachment.cid) {
+export function validateEmbeddedImage(embeddedImage: Types.EmbeddedImage): void {
+  validateEmailAttachment(embeddedImage)
+  if (!embeddedImage.cid) {
     throw new Error('Embedded attachment Content-ID is required')
   }
-  if (typeof attachment.cid !== 'string') {
+  if (typeof embeddedImage.cid !== 'string') {
     throw new Error('Embedded attachment Content-ID must be a string')
   }
-  if (!attachment.cid.startsWith('<') || !attachment.cid.endsWith('>')) {
+  if (!embeddedImage.cid.startsWith('<') || !embeddedImage.cid.endsWith('>')) {
     throw new Error('Embedded attachment Content-ID must be enclosed in angle brackets')
   }
-  if (attachment.disposition && !['inline', 'attachment'].includes(attachment.disposition)) {
+  const contentIdInnerValue = embeddedImage.cid.slice(1, -1)
+  if (contentIdInnerValue.includes('\r') || contentIdInnerValue.includes('\n')) {
+    throw new Error('Embedded attachment Content-ID cannot contain line breaks')
+  }
+  if (embeddedImage.disposition && !['inline', 'attachment'].includes(embeddedImage.disposition)) {
     throw new Error('Embedded attachment disposition must be inline or attachment')
   }
 }

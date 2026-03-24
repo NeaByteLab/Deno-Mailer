@@ -6,16 +6,16 @@ import type * as Types from '@app/Types.ts'
  * @param config - SMTP configuration to validate
  * @throws {Error} When configuration validation fails
  */
-export function isValidConfig(config: Types.SmtpConnectionConfig): void {
+export function validateSmtpConfig(config: Types.SmtpConnectionConfig): void {
   if (!config) {
     throw new Error('Configuration is required')
   }
-  validateAuth(config.auth ?? undefined)
-  validateDkim(config.dkim ?? undefined)
-  validateHost(config.host)
-  validatePool(config.pool ?? undefined)
-  validatePort(config.port)
-  validateSecure(config.secure ?? false)
+  validateSmtpAuth(config.auth ?? undefined)
+  validateSmtpDkim(config.dkim ?? undefined)
+  validateSmtpHost(config.host)
+  validateSmtpPool(config.pool ?? undefined)
+  validateSmtpPort(config.port)
+  validateSmtpSecure(config.secure ?? false)
 }
 
 /**
@@ -24,7 +24,7 @@ export function isValidConfig(config: Types.SmtpConnectionConfig): void {
  * @param auth - Authentication credentials to validate
  * @throws {Error} When authentication validation fails
  */
-function validateAuth(auth: Types.SmtpAuthCredential | undefined): void {
+function validateSmtpAuth(auth: Types.SmtpAuthCredential | undefined): void {
   if (auth) {
     if (!auth.user || auth.user.length === 0) {
       throw new Error('SMTP auth user is required')
@@ -60,7 +60,7 @@ function validateAuth(auth: Types.SmtpAuthCredential | undefined): void {
  * @param dkim - DKIM settings to validate
  * @throws {Error} When DKIM validation fails
  */
-function validateDkim(dkim: Types.SmtpDkimConfig | undefined): void {
+function validateSmtpDkim(dkim: Types.SmtpDkimConfig | undefined): void {
   if (!dkim) {
     return
   }
@@ -81,7 +81,7 @@ function validateDkim(dkim: Types.SmtpDkimConfig | undefined): void {
  * @param host - Host string to validate
  * @throws {Error} When host validation fails
  */
-function validateHost(host: string): void {
+function validateSmtpHost(host: string): void {
   if (!host) {
     throw new Error('SMTP host is required')
   }
@@ -102,7 +102,7 @@ function validateHost(host: string): void {
  * @param pool - Pool settings to validate
  * @throws {Error} When pool validation fails
  */
-function validatePool(pool: Types.SmtpPoolConfig | boolean | undefined): void {
+function validateSmtpPool(pool: Types.SmtpPoolConfig | boolean | undefined): void {
   if (pool === undefined) {
     return
   }
@@ -135,7 +135,7 @@ function validatePool(pool: Types.SmtpPoolConfig | boolean | undefined): void {
  * @param port - Port number to validate
  * @throws {Error} When port validation fails
  */
-function validatePort(port: number): void {
+function validateSmtpPort(port: number): void {
   if (!port) {
     throw new Error('SMTP port is required')
   }
@@ -156,7 +156,7 @@ function validatePort(port: number): void {
  * @param secure - Secure flag to validate
  * @throws {Error} When secure validation fails
  */
-function validateSecure(secure: boolean): void {
+function validateSmtpSecure(secure: boolean): void {
   if (typeof secure !== 'boolean') {
     throw new Error('SMTP secure option must be a boolean')
   }
