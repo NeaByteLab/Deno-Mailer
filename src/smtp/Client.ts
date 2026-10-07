@@ -42,20 +42,13 @@ export class SmtpClient {
    */
   async connect(): Promise<void> {
     try {
+      await this.openTcpConnection()
       if (this.config.secure) {
-        this.connectionState.tlsConn = await Deno.connectTls({
-          hostname: this.config.host,
-          port: this.config.port
-        })
-        await this.commands.readResponse()
-        await this.commands.sendCommand(`EHLO ${this.config.host}`)
-      } else {
-        this.connectionState.conn = await Deno.connect({
-          hostname: this.config.host,
-          port: this.config.port
-        })
-        await this.commands.readResponse()
-        const ehloResponse = await this.commands.sendCommand(`EHLO ${this.config.host}`)
+        await this.upgradeToTLS()
+      }
+      await this.commands.readResponse()
+      const ehloResponse = await this.commands.sendCommand(`EHLO ${this.config.host}`)
+      if (!this.config.secure) {
         const hasStartTlsSupport = /\bSTARTTLS\b/i.test(ehloResponse)
         if (this.config.port === 587 && !hasStartTlsSupport) {
           throw new Error('STARTTLS is required on port 587 but server does not advertise support')
@@ -265,16 +258,51 @@ export class SmtpClient {
   }
 
   /**
+   * Open TCP connection.
+   * @description Connects to configured host within connection timeout.
+   * @throws {SmtpTimeoutError} When TCP connect exceeds connection timeout
+   */
+  private async openTcpConnection(): Promise<void> {
+    const connectionTimeoutMs = this.config.connectionTimeoutMs ?? SMTP.defaultConnectionTimeoutMs
+    const connectAbort = new AbortController()
+    const pendingConn = Deno.connect({
+      hostname: this.config.host,
+      port: this.config.port,
+      signal: connectAbort.signal
+    })
+    this.connectionState.conn = await SMTP.withTimeout(
+      pendingConn,
+      connectionTimeoutMs,
+      `Connection to ${this.config.host}:${this.config.port} timed out after ${connectionTimeoutMs} ms`,
+      () => {
+        connectAbort.abort()
+        // Runtimes that ignore the signal may still connect; close that socket.
+        pendingConn.then((lateConn) => lateConn.close(), () => {})
+      }
+    )
+  }
+
+  /**
    * Upgrade transport to TLS.
-   * @description Starts TLS over existing plain connection.
+   * @description Starts TLS over plain connection and completes handshake within connection timeout.
+   * @throws {Error} When no plain connection exists or handshake fails
+   * @throws {SmtpTimeoutError} When TLS handshake exceeds connection timeout
    */
   private async upgradeToTLS(): Promise<void> {
     if (!this.connectionState.conn) {
       throw new Error('No connection to upgrade')
     }
-    this.connectionState.tlsConn = await Deno.startTls(this.connectionState.conn as Deno.TcpConn, {
+    const connectionTimeoutMs = this.config.connectionTimeoutMs ?? SMTP.defaultConnectionTimeoutMs
+    const tlsConn = await Deno.startTls(this.connectionState.conn as Deno.TcpConn, {
       hostname: this.config.host
     })
     this.connectionState.conn = null
+    this.connectionState.tlsConn = tlsConn
+    await SMTP.withTimeout(
+      tlsConn.handshake(),
+      connectionTimeoutMs,
+      `TLS handshake with ${this.config.host}:${this.config.port} timed out after ${connectionTimeoutMs} ms`,
+      () => this.commands.close()
+    )
   }
 }

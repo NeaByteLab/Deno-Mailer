@@ -9,6 +9,21 @@ const testMessage = {
   text: 'Hello'
 }
 
+Deno.test('SmtpClient connect rejects when TLS handshake exceeds connectionTimeoutMs', async () => {
+  // Deno keeps the TCP socket under an unfinished TLS handshake open until the peer answers or
+  // hangs up, so this server hangs up itself shortly after the client gives up.
+  const server = startSmtpServer(['greeting'], 500)
+  const smtpClient = new SMTP.SmtpClient({
+    host: '127.0.0.1',
+    port: server.port,
+    secure: true,
+    connectionTimeoutMs: 200
+  })
+  await assertRejects(() => smtpClient.connect(), Error, 'TLS handshake')
+  assertEquals(smtpClient.isConnected, false)
+  await server.outcomes
+})
+
 Deno.test('SmtpClient connect closes socket when greeting exceeds socketTimeoutMs', async () => {
   const server = startSmtpServer(['greeting'])
   const smtpClient = new SMTP.SmtpClient({
