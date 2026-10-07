@@ -7,6 +7,24 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- Added `connectionTimeoutMs` SMTP config option (default `30000`) bounding TCP connect and each TLS handshake
+- Added `socketTimeoutMs` SMTP config option (default `60000`) bounding each server reply wait and socket write
+- Added config validation for timeout options (integer between `1` and `2147483647`)
+- Added loopback SMTP server test helper and transport timeout regression tests
+
+### Changed
+
+- Updated SMTP client to close its socket on timeout so pooled clients reconnect instead of reusing a dead connection
+- Updated RCPT handling to fail the send on timeout instead of counting the recipient as rejected
+- Updated implicit TLS (`secure: true`) to connect over TCP then start TLS, so connect and handshake are bounded separately
+- Updated `SmtpAuth` to share `SmtpCommand` wire I/O instead of a duplicate reader and writer
+
+### Fixed
+
+- Fixed SMTP writes ignoring partial socket writes, which truncated messages larger than one write (64 KiB over TLS) and left `send()` waiting indefinitely
+
 ## [0.3.0] - 2026-03-25
 
 ### Added
