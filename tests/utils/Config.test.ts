@@ -40,6 +40,15 @@ Deno.test('validateSmtpConfig accepts SMTP config with dkim and pool settings', 
   })
 })
 
+Deno.test('validateSmtpConfig accepts SMTP timeouts at 1 and 2147483647 ms', () => {
+  Utils.validateSmtpConfig({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    connectionTimeoutMs: 1,
+    socketTimeoutMs: 2147483647
+  })
+})
+
 Deno.test('validateSmtpConfig accepts valid SMTP config', () => {
   Utils.validateSmtpConfig({
     host: 'smtp.ethereal.email',
@@ -66,6 +75,19 @@ Deno.test('validateSmtpConfig rejects auth without type discriminator', () => {
       }),
     Error,
     'auth type must be password or oauth2'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects connectionTimeoutMs of zero', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        connectionTimeoutMs: 0
+      }),
+    Error,
+    'connectionTimeoutMs must be integer between 1 and 2147483647'
   )
 })
 
@@ -280,5 +302,18 @@ Deno.test('validateSmtpConfig rejects SMTP host that is only whitespace', () => 
       }),
     Error,
     'host cannot be empty'
+  )
+})
+
+Deno.test('validateSmtpConfig rejects socketTimeoutMs above setTimeout limit', () => {
+  assertThrows(
+    () =>
+      Utils.validateSmtpConfig({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        socketTimeoutMs: 2147483648
+      }),
+    Error,
+    'socketTimeoutMs must be integer between 1 and 2147483647'
   )
 })
