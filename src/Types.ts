@@ -165,7 +165,7 @@ export interface SmtpPasswordAuthCredential extends SmtpAuthBase<'password'> {
 
 /**
  * SMTP connection configuration.
- * @description Defines host port auth DKIM and pooling options.
+ * @description Defines host port TLS timeouts auth DKIM and pooling options.
  */
 export interface SmtpConnectionConfig {
   /** SMTP server hostname */
@@ -174,6 +174,10 @@ export interface SmtpConnectionConfig {
   port: number
   /** Whether to use secure TLS connection */
   secure?: boolean
+  /** TCP connect and TLS handshake timeout in milliseconds */
+  connectionTimeoutMs?: number
+  /** Inactivity timeout for each SMTP socket read or write in milliseconds */
+  socketTimeoutMs?: number
   /** Optional authentication credentials */
   auth?: SmtpAuthCredential
   /** Optional DKIM signing configuration */
