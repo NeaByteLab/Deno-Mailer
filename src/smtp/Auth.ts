@@ -1,5 +1,6 @@
 import type * as Types from '@app/Types.ts'
 import { SmtpCommand } from '@smtp/Command.ts'
+import { SmtpTimeoutError } from '@smtp/Timeout.ts'
 
 /**
  * Authenticate SMTP session.
@@ -40,7 +41,10 @@ export class SmtpAuth {
       await this.commands.sendCommand(username)
       const password = btoa(this.state.config.auth.pass)
       await this.commands.sendCommand(password)
-    } catch {
+    } catch (error) {
+      if (error instanceof SmtpTimeoutError) {
+        throw error
+      }
       const credentials =
         `${this.state.config.auth.user}\0${this.state.config.auth.user}\0${this.state.config.auth.pass}`
       const encoded = btoa(credentials)
