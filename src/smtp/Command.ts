@@ -13,6 +13,21 @@ export class SmtpCommand {
   constructor(private state: Types.SmtpConnectionState) {}
 
   /**
+   * Close active transport.
+   * @description Closes TLS or TCP socket and clears shared connection state.
+   */
+  close(): void {
+    const transport = this.state.tlsConn ?? this.state.conn
+    this.state.tlsConn = null
+    this.state.conn = null
+    try {
+      transport?.close()
+    } catch {
+      // Already closed
+    }
+  }
+
+  /**
    * Read server response.
    * @description Reads server reply until final status line.
    * @returns Server response string

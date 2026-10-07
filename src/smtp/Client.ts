@@ -13,14 +13,10 @@ export class SmtpClient {
   private commands: SMTP.SmtpCommand
   /** SMTP server configuration */
   private config: Types.SmtpConnectionConfig
-  /** Raw TCP connection */
-  private conn: Deno.Conn | null = null
   /** Internal connection state tracking */
   private connectionState: Types.SmtpConnectionState
   /** Email message formatter */
   private messageFormatter: SMTP.SmtpMessage
-  /** TLS encrypted connection */
-  private tlsConn: Deno.TlsConn | null = null
 
   /**
    * Create SMTP client.
@@ -30,8 +26,8 @@ export class SmtpClient {
   constructor(config: Types.SmtpConnectionConfig) {
     this.config = config
     this.connectionState = {
-      conn: this.conn,
-      tlsConn: this.tlsConn,
+      conn: null,
+      tlsConn: null,
       config: this.config
     }
     this.commands = new SMTP.SmtpCommand(this.connectionState)
@@ -47,19 +43,17 @@ export class SmtpClient {
   async connect(): Promise<void> {
     try {
       if (this.config.secure) {
-        this.tlsConn = await Deno.connectTls({
+        this.connectionState.tlsConn = await Deno.connectTls({
           hostname: this.config.host,
           port: this.config.port
         })
-        this.connectionState.tlsConn = this.tlsConn
         await this.commands.readResponse()
         await this.commands.sendCommand(`EHLO ${this.config.host}`)
       } else {
-        this.conn = await Deno.connect({
+        this.connectionState.conn = await Deno.connect({
           hostname: this.config.host,
           port: this.config.port
         })
-        this.connectionState.conn = this.conn
         await this.commands.readResponse()
         const ehloResponse = await this.commands.sendCommand(`EHLO ${this.config.host}`)
         const hasStartTlsSupport = /\bSTARTTLS\b/i.test(ehloResponse)
@@ -87,25 +81,15 @@ export class SmtpClient {
    * @description Sends QUIT and closes active transport.
    */
   async disconnect(): Promise<void> {
-    if (this.tlsConn) {
-      try {
-        await this.commands.sendCommand('QUIT')
-      } catch {
-        // Ignore errors
-      }
-      this.tlsConn.close()
-      this.tlsConn = null
-      this.connectionState.tlsConn = null
-    } else if (this.conn) {
-      try {
-        await this.commands.sendCommand('QUIT')
-      } catch {
-        // Ignore errors
-      }
-      this.conn.close()
-      this.conn = null
-      this.connectionState.conn = null
+    if (!this.isConnected) {
+      return
     }
+    try {
+      await this.commands.sendCommand('QUIT')
+    } catch {
+      // Ignore errors
+    }
+    this.commands.close()
   }
 
   /**
@@ -114,7 +98,7 @@ export class SmtpClient {
    * @returns True when connection is active
    */
   get isConnected(): boolean {
-    return Boolean(this.conn || this.tlsConn)
+    return Boolean(this.connectionState.conn || this.connectionState.tlsConn)
   }
 
   /**
@@ -125,7 +109,7 @@ export class SmtpClient {
    * @throws {Error} When message validation fails or transmission is unsuccessful
    */
   async sendMessage(message: Types.EmailMessage): Promise<Types.SmtpSendResult> {
-    if (!this.conn && !this.tlsConn) {
+    if (!this.isConnected) {
       throw new Error('Not connected to SMTP server')
     }
     if (message.attachments && message.attachments.length > 0) {
@@ -282,14 +266,12 @@ export class SmtpClient {
    * @description Starts TLS over existing plain connection.
    */
   private async upgradeToTLS(): Promise<void> {
-    if (!this.conn) {
+    if (!this.connectionState.conn) {
       throw new Error('No connection to upgrade')
     }
-    this.tlsConn = await Deno.startTls(this.conn as Deno.TcpConn, {
+    this.connectionState.tlsConn = await Deno.startTls(this.connectionState.conn as Deno.TcpConn, {
       hostname: this.config.host
     })
-    this.conn = null
     this.connectionState.conn = null
-    this.connectionState.tlsConn = this.tlsConn
   }
 }
