@@ -56,3 +56,17 @@ Deno.test('SmtpClient sendMessage rejects when not connected to server', async (
     'Not connected to SMTP server'
   )
 })
+
+Deno.test('SmtpClient sendMessage reports RCPT timeout instead of rejected recipients', async () => {
+  const server = startSmtpServer(['rcpt'])
+  const smtpClient = new SMTP.SmtpClient({
+    host: '127.0.0.1',
+    port: server.port,
+    socketTimeoutMs: 200
+  })
+  await smtpClient.connect()
+  await assertRejects(() => smtpClient.sendMessage(testMessage), Error, 'timed out')
+  assertEquals(smtpClient.isConnected, false)
+  const [outcome] = await server.outcomes
+  assertEquals(outcome?.clientClosed, true)
+})

@@ -146,7 +146,10 @@ export class SmtpClient {
         try {
           await this.commands.sendCommand(`RCPT TO:<${recipient.email}>`)
           acceptedRecipients.push(recipient.email)
-        } catch {
+        } catch (error) {
+          if (error instanceof SMTP.SmtpTimeoutError) {
+            throw error
+          }
           rejectedRecipients.push(recipient.email)
         }
       }
