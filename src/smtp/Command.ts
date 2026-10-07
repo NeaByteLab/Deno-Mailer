@@ -63,19 +63,10 @@ export class SmtpCommand {
    * @description Writes command and waits for response.
    * @param command - SMTP command to send
    * @returns Server response string
-   * @throws {Error} When command times out or server returns error
+   * @throws {Error} When not connected or server returns error
    */
   async sendCommand(command: string): Promise<string> {
-    if (!this.state.conn && !this.state.tlsConn) {
-      throw new Error('Not connected')
-    }
-    const encoder = new TextEncoder()
-    const commandPayload = encoder.encode(`${command}\r\n`)
-    if (this.state.tlsConn) {
-      await this.state.tlsConn.write(commandPayload)
-    } else if (this.state.conn) {
-      await this.state.conn.write(commandPayload)
-    }
+    await this.writeAll(new TextEncoder().encode(`${command}\r\n`))
     return await this.readResponse()
   }
 
@@ -83,18 +74,26 @@ export class SmtpCommand {
    * Send raw SMTP data.
    * @description Writes payload bytes without reading response.
    * @param data - Raw data to send
-   * @throws {Error} When not connected to server or timeout occurs
+   * @throws {Error} When not connected to server
    */
   async sendData(data: string): Promise<void> {
-    if (!this.state.conn && !this.state.tlsConn) {
-      throw new Error('Not connected')
-    }
-    const encoder = new TextEncoder()
-    const encoded = encoder.encode(data)
-    if (this.state.tlsConn) {
-      await this.state.tlsConn.write(encoded)
-    } else if (this.state.conn) {
-      await this.state.conn.write(encoded)
+    await this.writeAll(new TextEncoder().encode(data))
+  }
+
+  /**
+   * Write full payload to transport.
+   * @description Repeats partial socket writes until every byte is written.
+   * @param payload - Bytes to write
+   * @throws {Error} When not connected to server
+   */
+  private async writeAll(payload: Uint8Array): Promise<void> {
+    let bytesWritten = 0
+    while (bytesWritten < payload.length) {
+      const transport = this.state.tlsConn ?? this.state.conn
+      if (!transport) {
+        throw new Error('Not connected')
+      }
+      bytesWritten += await transport.write(payload.subarray(bytesWritten))
     }
   }
 }
