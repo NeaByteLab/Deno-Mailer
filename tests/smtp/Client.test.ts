@@ -9,6 +9,19 @@ const testMessage = {
   text: 'Hello'
 }
 
+Deno.test('SmtpClient connect closes socket when greeting exceeds socketTimeoutMs', async () => {
+  const server = startSmtpServer(['greeting'])
+  const smtpClient = new SMTP.SmtpClient({
+    host: '127.0.0.1',
+    port: server.port,
+    socketTimeoutMs: 200
+  })
+  await assertRejects(() => smtpClient.connect(), Error, 'timed out')
+  assertEquals(smtpClient.isConnected, false)
+  const [outcome] = await server.outcomes
+  assertEquals(outcome?.clientClosed, true)
+})
+
 Deno.test('SmtpClient sendMessage delivers DATA larger than one socket write', async () => {
   const server = startSmtpServer(['none'])
   const smtpClient = new SMTP.SmtpClient({
