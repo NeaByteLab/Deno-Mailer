@@ -11,6 +11,7 @@ This document explains the full **Deno Mailer** usage flow, from SMTP configurat
   - [DKIM Signing](#dkim-signing)
   - [Pooling and Reuse](#pooling-and-reuse)
   - [TLS and SSL Options](#tls-and-ssl-options)
+  - [Timeouts](#timeouts)
 - [Basic Usage](#basic-usage)
   - [Simple Text Email](#simple-text-email)
   - [HTML Email](#html-email)
@@ -178,6 +179,31 @@ With `secure: true`, the connection uses TLS from the first byte (typical for po
   secure: true
 }
 ```
+
+### Timeouts
+
+Every network wait is bounded, so an unresponsive server cannot hold `send()` or its socket open indefinitely. When a limit is hit, the client closes its socket and `send()` rejects with a message containing `timed out`. A pooled client that timed out reconnects on its next use.
+
+| Option                | Default | Limits                                                                     |
+| --------------------- | ------- | -------------------------------------------------------------------------- |
+| `connectionTimeoutMs` | `30000` | TCP connect, and each TLS handshake (`secure: true` or after `STARTTLS`)   |
+| `socketTimeoutMs`     | `60000` | Each wait for a server reply and each socket write (inactivity, not total) |
+
+```ts
+// Fail fast against unresponsive servers.
+const transporter = mailer.transporter({
+  host: 'smtp.example.com',
+  port: 587,
+  secure: false,
+  connectionTimeoutMs: 10000,
+  socketTimeoutMs: 15000
+})
+```
+
+`socketTimeoutMs` measures inactivity: a large message keeps uploading as long as each write makes progress, so one `send()` can take longer than either value. Wrap `send()` in your own deadline if you need a cap on total time.
+
+> [!NOTE]
+> If a server stops responding in the middle of a TLS handshake, `send()` still rejects on time, but the Deno runtime keeps that TCP socket open until the server answers or disconnects. Replies and writes after the handshake are not affected.
 
 ## Basic Usage
 
@@ -499,6 +525,8 @@ Rules:
 | `host`                          | string         | yes                     | SMTP server hostname          | `'smtp.gmail.com'`                    |
 | `port`                          | number         | yes                     | SMTP server port              | `587`, `465`, `25`                    |
 | `secure`                        | boolean        | no                      | Implicit TLS from connect     | `true` (465), `false` or omit (587)   |
+| `connectionTimeoutMs`           | number         | no                      | TCP connect and TLS handshake | `30000`                               |
+| `socketTimeoutMs`               | number         | no                      | Server reply and write idle   | `60000`                               |
 | `auth`                          | object         | no                      | Omit for servers without AUTH | See [Authentication](#authentication) |
 | `auth.type`                     | string         | when `auth` set         | Password or OAuth2            | `'password'`, `'oauth2'`              |
 | `auth.user`                     | string         | when `auth` set         | SMTP username                 | `'user@example.com'`                  |
@@ -631,6 +659,7 @@ const transporter = mailer.transporter({
 - Verify SMTP host and port values
 - Check firewall or network restrictions
 - Try alternative SMTP ports (`587`, `465`, `25`)
+- Errors containing `timed out` come from `connectionTimeoutMs` (connect or TLS handshake) or `socketTimeoutMs` (server reply or write); see [Timeouts](#timeouts)
 
 ### TLS Errors
 

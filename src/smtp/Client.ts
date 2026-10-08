@@ -13,14 +13,10 @@ export class SmtpClient {
   private commands: SMTP.SmtpCommand
   /** SMTP server configuration */
   private config: Types.SmtpConnectionConfig
-  /** Raw TCP connection */
-  private conn: Deno.Conn | null = null
   /** Internal connection state tracking */
   private connectionState: Types.SmtpConnectionState
   /** Email message formatter */
   private messageFormatter: SMTP.SmtpMessage
-  /** TLS encrypted connection */
-  private tlsConn: Deno.TlsConn | null = null
 
   /**
    * Create SMTP client.
@@ -30,8 +26,8 @@ export class SmtpClient {
   constructor(config: Types.SmtpConnectionConfig) {
     this.config = config
     this.connectionState = {
-      conn: this.conn,
-      tlsConn: this.tlsConn,
+      conn: null,
+      tlsConn: null,
       config: this.config
     }
     this.commands = new SMTP.SmtpCommand(this.connectionState)
@@ -46,22 +42,13 @@ export class SmtpClient {
    */
   async connect(): Promise<void> {
     try {
+      await this.openTcpConnection()
       if (this.config.secure) {
-        this.tlsConn = await Deno.connectTls({
-          hostname: this.config.host,
-          port: this.config.port
-        })
-        this.connectionState.tlsConn = this.tlsConn
-        await this.commands.readResponse()
-        await this.commands.sendCommand(`EHLO ${this.config.host}`)
-      } else {
-        this.conn = await Deno.connect({
-          hostname: this.config.host,
-          port: this.config.port
-        })
-        this.connectionState.conn = this.conn
-        await this.commands.readResponse()
-        const ehloResponse = await this.commands.sendCommand(`EHLO ${this.config.host}`)
+        await this.upgradeToTLS()
+      }
+      await this.commands.readResponse()
+      const ehloResponse = await this.commands.sendCommand(`EHLO ${this.config.host}`)
+      if (!this.config.secure) {
         const hasStartTlsSupport = /\bSTARTTLS\b/i.test(ehloResponse)
         if (this.config.port === 587 && !hasStartTlsSupport) {
           throw new Error('STARTTLS is required on port 587 but server does not advertise support')
@@ -87,25 +74,15 @@ export class SmtpClient {
    * @description Sends QUIT and closes active transport.
    */
   async disconnect(): Promise<void> {
-    if (this.tlsConn) {
-      try {
-        await this.commands.sendCommand('QUIT')
-      } catch {
-        // Ignore errors
-      }
-      this.tlsConn.close()
-      this.tlsConn = null
-      this.connectionState.tlsConn = null
-    } else if (this.conn) {
-      try {
-        await this.commands.sendCommand('QUIT')
-      } catch {
-        // Ignore errors
-      }
-      this.conn.close()
-      this.conn = null
-      this.connectionState.conn = null
+    if (!this.isConnected) {
+      return
     }
+    try {
+      await this.commands.sendCommand('QUIT')
+    } catch {
+      // Ignore errors
+    }
+    this.commands.close()
   }
 
   /**
@@ -114,7 +91,7 @@ export class SmtpClient {
    * @returns True when connection is active
    */
   get isConnected(): boolean {
-    return Boolean(this.conn || this.tlsConn)
+    return Boolean(this.connectionState.conn || this.connectionState.tlsConn)
   }
 
   /**
@@ -125,7 +102,7 @@ export class SmtpClient {
    * @throws {Error} When message validation fails or transmission is unsuccessful
    */
   async sendMessage(message: Types.EmailMessage): Promise<Types.SmtpSendResult> {
-    if (!this.conn && !this.tlsConn) {
+    if (!this.isConnected) {
       throw new Error('Not connected to SMTP server')
     }
     if (message.attachments && message.attachments.length > 0) {
@@ -162,7 +139,10 @@ export class SmtpClient {
         try {
           await this.commands.sendCommand(`RCPT TO:<${recipient.email}>`)
           acceptedRecipients.push(recipient.email)
-        } catch {
+        } catch (error) {
+          if (error instanceof SMTP.SmtpTimeoutError) {
+            throw error
+          }
           rejectedRecipients.push(recipient.email)
         }
       }
@@ -278,18 +258,51 @@ export class SmtpClient {
   }
 
   /**
+   * Open TCP connection.
+   * @description Connects to configured host within connection timeout.
+   * @throws {SmtpTimeoutError} When TCP connect exceeds connection timeout
+   */
+  private async openTcpConnection(): Promise<void> {
+    const connectionTimeoutMs = this.config.connectionTimeoutMs ?? SMTP.defaultConnectionTimeoutMs
+    const connectAbort = new AbortController()
+    const pendingConn = Deno.connect({
+      hostname: this.config.host,
+      port: this.config.port,
+      signal: connectAbort.signal
+    })
+    this.connectionState.conn = await SMTP.withTimeout(
+      pendingConn,
+      connectionTimeoutMs,
+      `Connection to ${this.config.host}:${this.config.port} timed out after ${connectionTimeoutMs} ms`,
+      () => {
+        connectAbort.abort()
+        // Runtimes that ignore the signal may still connect; close that socket.
+        pendingConn.then((lateConn) => lateConn.close(), () => {})
+      }
+    )
+  }
+
+  /**
    * Upgrade transport to TLS.
-   * @description Starts TLS over existing plain connection.
+   * @description Starts TLS over plain connection and completes handshake within connection timeout.
+   * @throws {Error} When no plain connection exists or handshake fails
+   * @throws {SmtpTimeoutError} When TLS handshake exceeds connection timeout
    */
   private async upgradeToTLS(): Promise<void> {
-    if (!this.conn) {
+    if (!this.connectionState.conn) {
       throw new Error('No connection to upgrade')
     }
-    this.tlsConn = await Deno.startTls(this.conn as Deno.TcpConn, {
+    const connectionTimeoutMs = this.config.connectionTimeoutMs ?? SMTP.defaultConnectionTimeoutMs
+    const tlsConn = await Deno.startTls(this.connectionState.conn as Deno.TcpConn, {
       hostname: this.config.host
     })
-    this.conn = null
     this.connectionState.conn = null
-    this.connectionState.tlsConn = this.tlsConn
+    this.connectionState.tlsConn = tlsConn
+    await SMTP.withTimeout(
+      tlsConn.handshake(),
+      connectionTimeoutMs,
+      `TLS handshake with ${this.config.host}:${this.config.port} timed out after ${connectionTimeoutMs} ms`,
+      () => this.commands.close()
+    )
   }
 }

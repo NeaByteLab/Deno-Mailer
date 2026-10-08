@@ -16,6 +16,8 @@ export function validateSmtpConfig(config: Types.SmtpConnectionConfig): void {
   validateSmtpPool(config.pool ?? undefined)
   validateSmtpPort(config.port)
   validateSmtpSecure(config.secure ?? false)
+  validateSmtpTimeout('connectionTimeoutMs', config.connectionTimeoutMs)
+  validateSmtpTimeout('socketTimeoutMs', config.socketTimeoutMs)
 }
 
 /**
@@ -159,5 +161,22 @@ function validateSmtpPort(port: number): void {
 function validateSmtpSecure(secure: boolean): void {
   if (typeof secure !== 'boolean') {
     throw new Error('SMTP secure option must be a boolean')
+  }
+}
+
+/**
+ * Validates SMTP timeout configuration.
+ * @description Ensures timeout is an integer within the setTimeout delay range.
+ * @param optionName - Config option name used in error message
+ * @param timeoutMs - Timeout in milliseconds to validate
+ * @throws {Error} When timeout validation fails
+ */
+function validateSmtpTimeout(optionName: string, timeoutMs: number | undefined): void {
+  if (timeoutMs === undefined) {
+    return
+  }
+  // setTimeout clamps delays above 2^31 - 1 ms to 1 ms.
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2147483647) {
+    throw new Error(`SMTP ${optionName} must be integer between 1 and 2147483647`)
   }
 }

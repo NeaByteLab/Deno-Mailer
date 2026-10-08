@@ -12,6 +12,7 @@ Lightweight Deno SMTP mailer with flexible configuration and formatting.
 
 - **Simple SMTP transport**: create transporter and send emails with minimal setup
 - **Connection pooling support**: reuse SMTP clients with configurable pool limits
+- **Bounded network timeouts**: connect, TLS handshake, and socket inactivity limits close stalled connections
 - **DKIM signing support**: sign outgoing messages with RSA private key
 - **Flexible recipients**: supports string, object, and mixed recipient formats
 - **Rich message content**: plain text, HTML, mixed body, and custom headers
