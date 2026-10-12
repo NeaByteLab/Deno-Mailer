@@ -1,3 +1,4 @@
+import * as Runtime from '@runtime/index.ts'
 import type * as Types from '@app/Types.ts'
 import * as SMTP from '@smtp/index.ts'
 import * as Utils from '@utils/index.ts'
@@ -26,8 +27,7 @@ export class SmtpClient {
   constructor(config: Types.SmtpConnectionConfig) {
     this.config = config
     this.connectionState = {
-      conn: null,
-      tlsConn: null,
+      transport: null,
       config: this.config
     }
     this.commands = new SMTP.SmtpCommand(this.connectionState)
@@ -91,7 +91,7 @@ export class SmtpClient {
    * @returns True when connection is active
    */
   get isConnected(): boolean {
-    return Boolean(this.connectionState.conn || this.connectionState.tlsConn)
+    return Boolean(this.connectionState.transport)
   }
 
   /**
@@ -265,19 +265,19 @@ export class SmtpClient {
   private async openTcpConnection(): Promise<void> {
     const connectionTimeoutMs = this.config.connectionTimeoutMs ?? SMTP.defaultConnectionTimeoutMs
     const connectAbort = new AbortController()
-    const pendingConn = Deno.connect({
+    const pendingTransport = Runtime.connectTransport({
       hostname: this.config.host,
       port: this.config.port,
       signal: connectAbort.signal
     })
-    this.connectionState.conn = await SMTP.withTimeout(
-      pendingConn,
+    this.connectionState.transport = await SMTP.withTimeout(
+      pendingTransport,
       connectionTimeoutMs,
       `Connection to ${this.config.host}:${this.config.port} timed out after ${connectionTimeoutMs} ms`,
       () => {
         connectAbort.abort()
         // Runtimes that ignore the signal may still connect; close that socket.
-        pendingConn.then((lateConn) => lateConn.close(), () => {})
+        pendingTransport.then((lateTransport) => lateTransport.close(), () => {})
       }
     )
   }
@@ -289,20 +289,21 @@ export class SmtpClient {
    * @throws {SmtpTimeoutError} When TLS handshake exceeds connection timeout
    */
   private async upgradeToTLS(): Promise<void> {
-    if (!this.connectionState.conn) {
+    const plainTransport = this.connectionState.transport
+    if (!plainTransport) {
       throw new Error('No connection to upgrade')
     }
     const connectionTimeoutMs = this.config.connectionTimeoutMs ?? SMTP.defaultConnectionTimeoutMs
-    const tlsConn = await Deno.startTls(this.connectionState.conn as Deno.TcpConn, {
-      hostname: this.config.host
-    })
-    this.connectionState.conn = null
-    this.connectionState.tlsConn = tlsConn
-    await SMTP.withTimeout(
-      tlsConn.handshake(),
+    const handshakeAbort = new AbortController()
+    this.connectionState.transport = await SMTP.withTimeout(
+      plainTransport.startTls({ hostname: this.config.host, signal: handshakeAbort.signal }),
       connectionTimeoutMs,
       `TLS handshake with ${this.config.host}:${this.config.port} timed out after ${connectionTimeoutMs} ms`,
-      () => this.commands.close()
+      () => {
+        // The secured socket only exists inside the pending upgrade; the signal closes it.
+        handshakeAbort.abort()
+        this.commands.close()
+      }
     )
   }
 }

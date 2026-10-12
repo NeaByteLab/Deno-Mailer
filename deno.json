@@ -1,7 +1,7 @@
 {
   "name": "@neabyte/deno-mailer",
-  "description": "Lightweight Deno SMTP mailer with flexible configuration and formatting",
-  "version": "0.3.0",
+  "description": "Lightweight SMTP mailer for Deno, Node and Bun with flexible configuration and formatting",
+  "version": "0.4.0",
   "type": "module",
   "license": "MIT",
   "exports": "./src/index.ts",
@@ -61,13 +61,18 @@
     "exclude": ["tests/**/*.d.ts"]
   },
   "tasks": {
-    "check": "deno fmt src/ && deno lint src/ && deno check src/",
-    "test": "deno test --allow-net --allow-env tests/"
+    "fmt": "deno fmt src/ tests/ scripts/",
+    "check": "deno fmt --check src/ tests/ scripts/ && deno lint src/ && deno check src/ tests/",
+    "test": "deno test --allow-net --allow-env tests/",
+    "bundle": "deno bundle --platform=deno --packages=external --format=esm src/index.ts -o dist/mailer.mjs",
+    "smoke:node": "deno task bundle && node scripts/smoke.mjs",
+    "smoke:bun": "deno task bundle && bun scripts/smoke.mjs"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "@app/": "./src/",
     "@smtp/": "./src/smtp/",
+    "@runtime/": "./src/runtime/",
     "@utils/": "./src/utils/",
     "@tests/": "./tests/"
   },

@@ -1,3 +1,5 @@
+import type { SmtpTransport } from '@runtime/Transport.ts'
+
 /**
  * Calendar event invitation data.
  * @description Defines calendar payload fields for event invites.
@@ -191,10 +193,8 @@ export interface SmtpConnectionConfig {
  * @description Holds active sockets and SMTP config reference.
  */
 export interface SmtpConnectionState {
-  /** Raw TCP connection */
-  conn: Deno.Conn | null
-  /** TLS encrypted connection */
-  tlsConn: Deno.TlsConn | null
+  /** Active transport, plain or secured */
+  transport: SmtpTransport | null
   /** Connection configuration */
   config: SmtpConnectionConfig
 }

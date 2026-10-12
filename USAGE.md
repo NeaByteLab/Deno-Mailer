@@ -41,21 +41,35 @@ This document explains the full **Deno Mailer** usage flow, from SMTP configurat
 ## Installation
 
 ```bash
-# Install package from JSR.
+# Deno.
 deno add jsr:@neabyte/deno-mailer
 ```
 
-Import the mailer from the same specifier your project uses for JSR (after `deno add`, the import map entry is usually `@neabyte/deno-mailer`):
-
-```ts
-import { mailer } from 'jsr:@neabyte/deno-mailer'
-// or: import { mailer } from '@neabyte/deno-mailer'
+```bash
+# Node.
+npx jsr add @neabyte/deno-mailer
 ```
 
-Types ship with the package. Use `import type { EmailMessage, SmtpConnectionConfig, SmtpSendResult } from 'jsr:@neabyte/deno-mailer'` when you only need types.
+```bash
+# Bun.
+bunx jsr add @neabyte/deno-mailer
+```
+
+Requires Deno `>=2.x`, Node `>=22` or Bun `>=1.1`. On Node and Bun, `jsr add` registers the
+`@jsr` registry in your project and installs the library as ESM with type declarations, so the
+import specifier is the same on every runtime.
+
+```ts
+import { mailer } from '@neabyte/deno-mailer'
+// Deno also accepts the fully qualified form:
+// import { mailer } from 'jsr:@neabyte/deno-mailer'
+```
+
+Types ship with the package. Use `import type { EmailMessage, SmtpConnectionConfig, SmtpSendResult } from '@neabyte/deno-mailer'` when you only need types.
 
 > [!TIP]
-> After `deno add`, prefer the import map key (often `@neabyte/deno-mailer`) so paths stay short and consistent.
+> The library opens sockets with `Deno.connect` on Deno and with `node:net` on Node and Bun. On
+> Deno this needs `--allow-net`; no permission flags apply on Node or Bun.
 
 ## Configuration
 
@@ -119,7 +133,8 @@ const transporter = mailer.transporter({
   dkim: {
     domainName: 'example.com',
     keySelector: 'mail',
-    privateKey: Deno.env.get('DKIM_PRIVATE_KEY') || ''
+    // Deno: Deno.env.get('DKIM_PRIVATE_KEY'); Node and Bun: process.env.DKIM_PRIVATE_KEY
+    privateKey: readDkimPrivateKey()
   }
 })
 ```

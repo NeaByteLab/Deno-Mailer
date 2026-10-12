@@ -18,9 +18,8 @@ export class SmtpCommand {
    * @description Closes TLS or TCP socket and clears shared connection state.
    */
   close(): void {
-    const transport = this.state.tlsConn ?? this.state.conn
-    this.state.tlsConn = null
-    this.state.conn = null
+    const transport = this.state.transport
+    this.state.transport = null
     try {
       transport?.close()
     } catch {
@@ -36,14 +35,14 @@ export class SmtpCommand {
    * @throws {SmtpTimeoutError} When server sends nothing within socket timeout
    */
   async readResponse(): Promise<string> {
-    if (!this.state.conn && !this.state.tlsConn) {
+    if (!this.state.transport) {
       throw new Error('Not connected')
     }
     const decoder = new TextDecoder()
     const buffer = new Uint8Array(1024)
     const socketTimeoutMs = this.state.config.socketTimeoutMs ?? defaultSocketTimeoutMs
     const readChunk = async (): Promise<number | null> => {
-      const transport = this.state.tlsConn ?? this.state.conn
+      const transport = this.state.transport
       if (!transport) {
         throw new Error('Connection closed')
       }
@@ -114,7 +113,7 @@ export class SmtpCommand {
     const socketTimeoutMs = this.state.config.socketTimeoutMs ?? defaultSocketTimeoutMs
     let bytesWritten = 0
     while (bytesWritten < payload.length) {
-      const transport = this.state.tlsConn ?? this.state.conn
+      const transport = this.state.transport
       if (!transport) {
         throw new Error('Not connected')
       }

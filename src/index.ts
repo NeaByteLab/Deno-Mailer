@@ -62,7 +62,7 @@ class SmtpClientPool {
   /** Busy SMTP clients currently in use */
   private busyClients = new Set<SMTP.SmtpClient>()
   /** Idle timer per pooled client */
-  private idleTimerByClient = new Map<SMTP.SmtpClient, number>()
+  private idleTimerByClient = new Map<SMTP.SmtpClient, SMTP.TimerHandle>()
   /** Processed message count per pooled client */
   private messageCountByClient = new Map<SMTP.SmtpClient, number>()
   /** Maximum messages before recycle */
@@ -179,3 +179,9 @@ export default mailer
  * @description Exposes shared interfaces and type aliases.
  */
 export type * from '@app/Types.ts'
+
+/**
+ * Re-export transport types.
+ * @description Exposes the socket abstraction that backs every runtime.
+ */
+export type * from '@runtime/Transport.ts'

@@ -8,20 +8,75 @@ on:
 
 jobs:
   test:
-    name: Check and Test
+    name: Check and Test (deno ${{ matrix.deno-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pinned baseline plus the moving latest release, so a type or lint
+        # change in a newer Deno fails here instead of in the Publish job.
+        deno-version: [v2.5.4, v2.x]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.5.4
+          deno-version: ${{ matrix.deno-version }}
 
       - name: Run source checks
         run: deno task check
 
       - name: Run test suite
         run: deno task test
+
+  smoke-node:
+    name: Smoke (node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 24 is the current LTS; 22 is the floor the package claims to support.
+        node-version: ['22', '24']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Send a message on Node
+        run: deno task smoke:node
+
+  smoke-bun:
+    name: Smoke (bun)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Send a message on Bun
+        run: deno task smoke:bun

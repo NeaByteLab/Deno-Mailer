@@ -5,10 +5,13 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-12
 
 ### Added
 
+- Added Node and Bun support: the package now runs on Deno, Node `>=22` and Bun `>=1.1`. Node and Bun install it from JSR with `npx jsr add @neabyte/deno-mailer`, which serves the same source as ESM with type declarations
+- Added `SmtpTransport` runtime abstraction with a native Deno implementation and a `node:net`/`node:tls` implementation selected at connect time
+- Added `deno task bundle`, `deno task smoke:node` and `deno task smoke:bun`, which send a message through a bundled build against a loopback SMTP server on each runtime
 - Added `connectionTimeoutMs` SMTP config option (default `30000`) bounding TCP connect and each TLS handshake
 - Added `socketTimeoutMs` SMTP config option (default `60000`) bounding each server reply wait and socket write
 - Added config validation for timeout options (integer between `1` and `2147483647`)
@@ -16,14 +19,26 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- **Breaking:** `SmtpConnectionState` now carries a single `transport: SmtpTransport | null` field instead of `conn: Deno.Conn | null` and `tlsConn: Deno.TlsConn | null`, removing `Deno.*` from the published type surface
+- Updated the TLS upgrade to resolve only after the handshake completes, so one timeout covers the whole upgrade on every runtime
 - Updated SMTP client to close its socket on timeout so pooled clients reconnect instead of reusing a dead connection
 - Updated RCPT handling to fail the send on timeout instead of counting the recipient as rejected
 - Updated implicit TLS (`secure: true`) to connect over TCP then start TLS, so connect and handshake are bounded separately
 - Updated `SmtpAuth` to share `SmtpCommand` wire I/O instead of a duplicate reader and writer
+- Updated CI to run the check and test tasks against both the pinned Deno release and the latest `v2.x`
+- Updated `deno task check` to verify formatting instead of rewriting it; use `deno task fmt` to format
+
+### Removed
+
+- **Breaking:** Removed the exported `SmtpConnection` class. It was unreachable from `SmtpClient` and reimplemented the transport without read, write or connect timeouts, without partial-write handling, and without multi-line reply parsing
 
 ### Fixed
 
+- Fixed `deno check` failing on Deno `>=2.6`, where the pooled idle timer handle is an object rather than a number
 - Fixed SMTP writes ignoring partial socket writes, which truncated messages larger than one write (64 KiB over TLS) and left `send()` waiting indefinitely
+- Fixed the Node and Bun TLS upgrade rejecting data buffered before the handshake, which would otherwise allow STARTTLS command injection
+- Fixed the secured socket leaking when a TLS handshake exceeded `connectionTimeoutMs`; the abandoned handshake is now aborted and its socket closed
+- Fixed TLS upgrades to an SMTP host given as an IP address, which `node:tls` rejects when the address is offered as an SNI name
 
 ## [0.3.0] - 2026-03-25
 

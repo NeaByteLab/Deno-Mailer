@@ -1,3 +1,9 @@
+/**
+ * Host timer handle.
+ * @description Opaque value returned by the host runtime timer API; numeric on web runtimes and an object on Node and Bun.
+ */
+export type TimerHandle = ReturnType<typeof setTimeout>
+
 /** Default TCP connect and TLS handshake timeout in milliseconds. */
 export const defaultConnectionTimeoutMs = 30000
 

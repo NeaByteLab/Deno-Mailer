@@ -2,9 +2,9 @@
 
 # Deno Mailer
 
-Lightweight Deno SMTP mailer with flexible configuration and formatting.
+Lightweight SMTP mailer for Deno, Node and Bun, with flexible configuration and formatting.
 
-[![Deno](https://img.shields.io/badge/deno-%3E%3D2.x-000000?logo=deno&logoColor=white)](https://deno.com) [![JSR](https://jsr.io/badges/@neabyte/deno-mailer)](https://jsr.io/@neabyte/deno-mailer) [![CI](https://github.com/NeaByteLab/Deno-Mailer/actions/workflows/ci.yml/badge.svg)](https://github.com/NeaByteLab/Deno-Mailer/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Deno](https://img.shields.io/badge/deno-%3E%3D2.x-000000?logo=deno&logoColor=white)](https://deno.com) [![Node](https://img.shields.io/badge/node-%3E%3D22-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org) [![Bun](https://img.shields.io/badge/bun-%3E%3D1.1-FBF0DF?logo=bun&logoColor=black)](https://bun.sh) [![JSR](https://jsr.io/badges/@neabyte/deno-mailer)](https://jsr.io/@neabyte/deno-mailer) [![CI](https://github.com/NeaByteLab/Deno-Mailer/actions/workflows/ci.yml/badge.svg)](https://github.com/NeaByteLab/Deno-Mailer/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 </div>
 
@@ -20,14 +20,29 @@ Lightweight Deno SMTP mailer with flexible configuration and formatting.
 - **Transfer encodings**: base64, 7bit, quoted-printable for attachment content
 - **Calendar invitations**: generates ICS calendar payload for meeting invites
 - **Structured send result**: returns message id, envelope, accepted, rejected, and response
-- **Zero external runtime deps**: built with Deno native capabilities
+- **Runs on Deno, Node and Bun**: one source, native `Deno.connect` on Deno and `node:net`/`node:tls` elsewhere
+- **Zero external runtime deps**: built on runtime primitives only
 
 ## Installation
 
 ```bash
-# Install package from JSR.
+# Deno, from JSR.
 deno add jsr:@neabyte/deno-mailer
 ```
+
+```bash
+# Node.
+npx jsr add @neabyte/deno-mailer
+```
+
+```bash
+# Bun.
+bunx jsr add @neabyte/deno-mailer
+```
+
+Requires Deno `>=2.x`, Node `>=22` or Bun `>=1.1`. On Node and Bun, `jsr add` registers the
+`@jsr` registry in your project and installs the same source as ESM with type declarations,
+so the import specifier stays `@neabyte/deno-mailer`.
 
 ## Quick Start
 
@@ -63,6 +78,12 @@ console.log(result.messageId)
 ```bash
 # Run format, lint, and type-check.
 deno task check
+```
+
+```bash
+# Bundle the library and send a message through it on Node and on Bun.
+deno task smoke:node
+deno task smoke:bun
 ```
 
 ## Test
